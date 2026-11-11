@@ -205,7 +205,7 @@ async function main(){
   let networkFailures=0;
   const images={saved:0,already_saved:0,skipped:0};
   let remainingImages=50;
-  const documentBudget={left:12};
+  const documentBudget={left:target?24:12};
   const rotating=!target&&params.get('limit')!=='3';
   const {lastArchiveAttempt}=rotating?await chrome.storage.local.get('lastArchiveAttempt'):{};
   const batch=rotating?rotateChats([...seen],lastArchiveAttempt,50,chatId):[...seen];

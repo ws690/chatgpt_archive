@@ -49,10 +49,12 @@ export async function collectHistory(initial, {read, scroll, pause, visit}) {
   let saved = initial.messages;
   let current = initial;
   let stride = Math.max(200, initial.view.viewport * 2);
+  let consecutiveJoins = 0;
+  const maxStride = Math.max(600, initial.view.viewport * 4);
   let topChecks = 0;
   let stalled = 0;
   try {
-    for (let step = 0; step < 160; step++) {
+    for (let step = 0; step < 480; step++) {
       const target = Math.max(0, current.view.top - stride);
       await scroll(target);
       await pause(700);
@@ -70,6 +72,7 @@ export async function collectHistory(initial, {read, scroll, pause, visit}) {
           return {messages:saved, history:'gap'};
         }
         current = {...current, view:{...next.view,top:current.view.top + growth}};
+        consecutiveJoins = 0;
         stride = Math.max(150, stride / 2);
         continue;
       }
@@ -85,6 +88,10 @@ export async function collectHistory(initial, {read, scroll, pause, visit}) {
       current = next;
       saved = joined;
       if (grew) await visit?.();
+      if (topChecks === 0 && stalled === 0 && ++consecutiveJoins >= 3) {
+        stride = Math.min(maxStride, Math.round(stride * 1.5));
+        consecutiveJoins = 0;
+      }
     }
   } catch (error) {
     if (error?.message !== 'run_timeout') throw error;
