@@ -114,7 +114,7 @@ def refresh_chat_masters(*, force=False):
             versions = db.execute('SELECT hash,path FROM versions WHERE id=? ORDER BY rowid DESC',
                                   (cid,)).fetchall()
             selected = None
-            most_turns = -1
+            best = (False, -1)
             for version, path in versions:
                 source = ROOT / path
                 record = json.loads(source.read_text(encoding='utf-8'))
@@ -122,11 +122,10 @@ def refresh_chat_masters(*, force=False):
                 complete = not cid.startswith('browser-') or (
                     isinstance(capture, dict) and capture.get('history') == 'visible_start')
                 turns = len(record.get('mapping') or {})
-                if complete or turns > most_turns:
+                rank = (complete, turns)
+                if rank > best:
                     selected = version, record, complete
-                    most_turns = turns
-                if complete:
-                    break
+                    best = rank
             version, record, complete = selected
             title = str(record.get('title') or folder).removeprefix('[Browser capture] ')
             note = '' if complete else '> Partial transcript. A capture from the visible beginning is pending.\n\n'
