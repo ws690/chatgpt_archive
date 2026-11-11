@@ -59,3 +59,17 @@ test('unchanged chats can skip history until the weekly recheck',async()=>{
  assert.equal(await chatFingerprint('Kitchen',{messages:edited,imageCount:0}),fingerprint);
  assert.notEqual(await transcriptFingerprint('Kitchen',edited),await transcriptFingerprint('Kitchen',messages));
 });
+
+test('history traverses long overlapping windows without skipping turns',async()=>{
+ const turns=Array.from({length:1000},(_,index)=>({role:'user',key:String(index),text:String(index)}));
+ let top=149000;
+ const sample=()=>({
+   view:{top,height:149100,viewport:100},
+   messages:turns.slice(Math.floor(top/150),Math.floor(top/150)+9)
+ });
+ const result=await collectHistory(sample(),{
+   scroll:async offset=>{top=offset;},pause:async()=>{},read:async()=>sample()
+ });
+ assert.equal(result.history,'visible_start');
+ assert.deepEqual(result.messages,turns);
+});

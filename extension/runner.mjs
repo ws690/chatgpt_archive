@@ -93,7 +93,7 @@ async function main(){
  }
  runId=claim.run.id;
  runExpires=claim.run.expires;
- const documents={saved:0,already_saved:0,skipped:0};
+ const documents={saved:0,already_saved:0,skipped:0,deferred:0};
  let previousPhase,lastProgress=0,attemptedChats=0;
  const progress=async(phase,turns)=>{
   const now=Date.now();

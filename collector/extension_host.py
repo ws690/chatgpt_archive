@@ -18,8 +18,14 @@ SAFE_ERRORS = {'authentication_required','authentication_challenge','chatgpt_unr
 def add_file_counts(source, report, field):
     counts = source.get(field)
     if isinstance(counts, dict):
-        report[field] = {key: counts[key] for key in ('saved', 'already_saved', 'skipped')
+        report[field] = {key: counts[key] for key in ('saved', 'already_saved', 'skipped', 'deferred')
                          if type(counts.get(key)) is int and 0 <= counts[key] <= 10000}
+        reasons = counts.get('skipReasons')
+        allowed = ('viewer_unavailable','download_control_unavailable','download_not_seen','ambiguous_download',
+                   'download_incomplete','download_interrupted','too_large','download_unavailable','writer_rejected')
+        if field == 'documents' and isinstance(reasons, dict):
+            report[field]['skipReasons'] = {key: reasons[key] for key in allowed
+                                            if type(reasons.get(key)) is int and 0 <= reasons[key] <= 10000}
 
 
 def execute(message):

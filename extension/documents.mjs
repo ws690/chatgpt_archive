@@ -152,12 +152,12 @@ export async function collectDocuments({tabId, path, id, title, saved, seen, att
     if (seen.has(key)) continue;
     seen.add(key);
     if (saved.has(key)) { report.already_saved++; continue; }
-    if (budget.left <= 0) { report.skipped++; continue; }
+    if (budget.left <= 0) { report.deferred++; continue; }
     budget.left--;
     await check();
     attempted.delete(key);
     attempted.add(key);
-    let downloadId, opened = false;
+    let downloadId, opened = false, failure = 'viewer_unavailable';
     try {
       if (!chrome.downloads) throw Error('downloads_unavailable');
       const output = key.startsWith('["output",');
@@ -166,6 +166,7 @@ export async function collectDocuments({tabId, path, id, title, saved, seen, att
       const result = await page(output ? 'output-open' : 'open', key, filename);
       opened = !!result && result !== 'direct';
       if (!result) throw Error('document_viewer_unavailable');
+      failure = 'download_control_unavailable';
       let clicked = result === 'direct';
       for (let attempt = 0; attempt < 12 && !clicked; attempt++) {
         await pause();
@@ -173,6 +174,7 @@ export async function collectDocuments({tabId, path, id, title, saved, seen, att
         clicked = await page('download', key, filename);
       }
       if (!clicked) throw Error('document_download_unavailable');
+      failure = 'download_not_seen';
       const startDeadline = Date.now() + 30_000;
       const deadline = Date.now() + 120_000;
       while (Date.now() < deadline) {
@@ -180,16 +182,22 @@ export async function collectDocuments({tabId, path, id, title, saved, seen, att
         await pause();
         const items = await chrome.downloads.search({startedAfter, limit: 24});
         const matches = items.filter(item => matchesDownload(item, filename, path));
-        if (matches.length > 1) break;
+        if (matches.length > 1) { failure = 'ambiguous_download'; break; }
         const [item] = matches;
         if (!item) {
           if (!downloadId && Date.now() >= startDeadline) break;
           continue;
         }
         downloadId = item.id;
-        if (item.state === 'interrupted' || item.bytesReceived > 256 * 1024**2) break;
+        failure = 'download_incomplete';
+        if (item.state === 'interrupted') { failure = 'download_interrupted'; break; }
+        if (item.bytesReceived > 256 * 1024**2) { failure = 'too_large'; break; }
         if (item.state !== 'complete') continue;
-        if (!item.exists || !['safe', 'deepScannedSafe', 'allowlistedByPolicy'].includes(item.danger)) break;
+        if (!item.exists || !['safe', 'deepScannedSafe', 'allowlistedByPolicy'].includes(item.danger)) {
+          failure = 'download_unavailable';
+          break;
+        }
+        failure = 'writer_rejected';
         const reply = await chrome.runtime.sendNativeMessage(HOST, {
           cmd: 'stage_document', id, title, sourceName: item.filename.slice('/chat-files/'.length),
           filename, bytes: item.fileSize
@@ -207,6 +215,8 @@ export async function collectDocuments({tabId, path, id, title, saved, seen, att
       if (opened) await page('close').catch(() => {});
       if (!saved.has(key)) {
         report.skipped++;
+        report.skipReasons ??= {};
+        report.skipReasons[failure] = (report.skipReasons[failure] || 0) + 1;
         if (downloadId !== undefined) await chrome.downloads.cancel(downloadId).catch(() => {});
       }
     }
