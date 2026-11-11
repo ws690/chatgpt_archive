@@ -225,15 +225,16 @@ async function main(){
     const id=chatId(path);
     const savedDocuments=new Set(chatCheckpoints[id]?.documents || []);
     const seenDocuments=new Set();
+    const deferredDocuments=new Set();
     const attemptedDocuments=new Set(chatCheckpoints[id]?.documentAttempts || []);
     const documentKeys=()=>[...savedDocuments].slice(-200);
     const documentAttempts=()=>[...attemptedDocuments].slice(-200);
-    const saveDocuments=async(includeOutputs=false,phase='outputs')=>{
+    const saveDocuments=async(includeOutputs=false,phase='outputs',maxAttempts=Infinity)=>{
      try{
       await progress(phase);
       await collectDocuments({
        tabId,path:s.path,id,title,saved:savedDocuments,seen:seenDocuments,
-       attempted:attemptedDocuments,report:documents,budget:documentBudget,check:alive,includeOutputs,sleep
+       attempted:attemptedDocuments,deferred:deferredDocuments,report:documents,budget:documentBudget,check:alive,includeOutputs,maxAttempts,sleep
       });
      }finally{
       updatedCheckpoints[id]={...chatCheckpoints[id],documents:documentKeys(),documentAttempts:documentAttempts()};
@@ -270,7 +271,7 @@ async function main(){
     const draftBytes=encoder.encode(JSON.stringify(draft)).length;
     if(totalBytes+draftBytes>12*1024*1024)throw Error('oversized_conversation');
     captures.push(draft);totalBytes+=draftBytes;
-    await saveDocuments(true);
+    await saveDocuments(true,'outputs',1);
     const seenImages=new Set();
     const saveImages=async()=>{
      if(!remainingImages)return;
@@ -287,23 +288,29 @@ async function main(){
     await progress('history',initial.messages.length);
     const history=await collectHistory(initial,{
      read:async()=>{const window=await state('messages');await progress('history',window.messages.length);return window;},
-     scroll:offset=>state('history-scroll',offset),pause:sleep,visit:async()=>{await saveImages();await saveDocuments(true,'history');}
+     scroll:offset=>state('history-scroll',offset),pause:sleep,visit:async()=>{await saveImages();await saveDocuments(true,'history',2);}
     });
     if(history.history==='visible_start' &&
        (initial.unsettled || initial.view.top+initial.view.viewport<initial.view.height-5))history.history='stalled';
     const capture=makeCapture(history,history.history);
     const complete=history.history==='visible_start';
     const full=complete ? await transcriptFingerprint(title,capture.messages) : undefined;
-    const checkpoint={fingerprint,full,checkedAt:Date.now(),documents:documentKeys(),documentAttempts:documentAttempts()};
-    if(incremental && complete && chatCheckpoints[id]?.full===full){
-     updatedCheckpoints[id]=checkpoint;
-     captures.pop();totalBytes-=draftBytes;
-     unchanged++;
-     continue;
-    }
     const extraBytes=encoder.encode(JSON.stringify(capture)).length-draftBytes;
     if(totalBytes+extraBytes>12*1024*1024)throw Error('oversized_conversation');
     captures[captureIndex]=capture;totalBytes+=extraBytes;
+    if(documentBudget.left>0){
+     const current=await state('messages');
+     await state('history-scroll',current.view.height);
+     await sleep(1500);
+     await saveDocuments(true);
+    }
+    const checkpoint={fingerprint,full,checkedAt:Date.now(),documents:documentKeys(),documentAttempts:documentAttempts()};
+    if(incremental && complete && chatCheckpoints[id]?.full===full){
+     updatedCheckpoints[id]=checkpoint;
+     captures.pop();totalBytes-=draftBytes+extraBytes;
+     unchanged++;
+     continue;
+    }
     if(complete)updatedCheckpoints[id]=checkpoint;
    }catch(e){
     failed++;

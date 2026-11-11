@@ -125,7 +125,7 @@ function matchesDownload(item, filename, path) {
   }
 }
 
-export async function collectDocuments({tabId, path, id, title, saved, seen, attempted=new Set(), report, budget, check, includeOutputs=false,sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms))}) {
+export async function collectDocuments({tabId, path, id, title, saved, seen, attempted=new Set(), deferred=new Set(), report, budget, check, includeOutputs=false,maxAttempts=Infinity,sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms))}) {
   const page = async (action, key, filename) => {
     const [item] = await chrome.scripting.executeScript({
       target: {tabId}, func: documentCards, args: [path, action, key ?? null, filename ?? null]
@@ -148,12 +148,18 @@ export async function collectDocuments({tabId, path, id, title, saved, seen, att
   const order = new Map([...attempted].map((key, index) => [key,index]));
   const candidates = [...outputItems, ...inline].sort(([left],[right]) =>
     (order.get(left) ?? -1) - (order.get(right) ?? -1));
+  let attempts=0;
   for (const [key, filename] of candidates) {
     if (seen.has(key)) continue;
+    if (!saved.has(key) && (budget.left <= 0 || attempts >= maxAttempts)) {
+      if (!deferred.has(key)) { deferred.add(key); report.deferred++; }
+      continue;
+    }
+    if (deferred.delete(key)) report.deferred--;
     seen.add(key);
     if (saved.has(key)) { report.already_saved++; continue; }
-    if (budget.left <= 0) { report.deferred++; continue; }
     budget.left--;
+    attempts++;
     await check();
     attempted.delete(key);
     attempted.add(key);
