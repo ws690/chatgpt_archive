@@ -242,7 +242,7 @@ async function main(){
        attempted:attemptedDocuments,deferred:deferredDocuments,report:documents,budget:documentBudget,check:alive,includeOutputs,maxAttempts,sleep
       });
      }finally{
-      updatedCheckpoints[id]={...chatCheckpoints[id],documents:documentKeys(),documentAttempts:documentAttempts()};
+      updatedCheckpoints[id]={...(updatedCheckpoints[id]||chatCheckpoints[id]),documents:documentKeys(),documentAttempts:documentAttempts()};
      }
     };
     let initial;
@@ -305,8 +305,24 @@ async function main(){
     };
     retainHistory();
     if(history.failure)throw Error(history.failure);
-    // File viewers can change the scroll root or swap frames. Finish and
-    // retain the transcript before opening any of them.
+    if(needsTailCheck){
+     const start=await state('messages');
+     await state('history-scroll',start.view.height);
+     await sleep(1500);
+     await progress('stabilizing');
+     const tail=await messages();
+     if(!tail.unsettled && tail.view.top+tail.view.viewport>=tail.view.height-5){
+      const joined=mergeEarlier(tail.messages,history.messages);
+      if(joined){history.messages=joined;history.history='visible_start';retainHistory();}
+     }
+     await state('history-scroll',start.view.top);
+     await sleep(1500);
+    }
+    const complete=history.history==='visible_start';
+    const full=complete ? await transcriptFingerprint(title,captures[captureIndex].messages) : undefined;
+    if(complete)updatedCheckpoints[id]={fingerprint,full,checkedAt:Date.now(),
+     documents:documentKeys(),documentAttempts:documentAttempts()};
+    // Keep the verified transcript before opening viewers that may change the page.
     for(let window=0; window<480 && (documentBudget.left>0 || remainingImages>0); window++){
      const before=await state('messages');
      await saveImages();
@@ -318,22 +334,12 @@ async function main(){
      const after=await state('messages');
      if(after.view.top<=before.view.top && after.view.height===before.view.height)break;
     }
-    if(needsTailCheck || documentBudget.left>0){
+    if(documentBudget.left>0){
      const current=await state('messages');
      await state('history-scroll',current.view.height);
      await sleep(1500);
-     if(needsTailCheck){
-      await progress('stabilizing');
-      const tail=await messages();
-      if(!tail.unsettled && tail.view.top+tail.view.viewport>=tail.view.height-5){
-       const joined=mergeEarlier(tail.messages,history.messages);
-       if(joined){history.messages=joined;history.history='visible_start';retainHistory();}
-      }
-     }
-     if(documentBudget.left>0)await saveDocuments(true);
+     await saveDocuments(true);
     }
-    const complete=history.history==='visible_start';
-    const full=complete ? await transcriptFingerprint(title,captures[captureIndex].messages) : undefined;
     const checkpoint={fingerprint,full,checkedAt:Date.now(),documents:documentKeys(),documentAttempts:documentAttempts()};
     if(incremental && complete && chatCheckpoints[id]?.full===full){
      updatedCheckpoints[id]=checkpoint;
