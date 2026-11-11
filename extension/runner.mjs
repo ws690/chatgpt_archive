@@ -276,7 +276,6 @@ async function main(){
     const draftBytes=encoder.encode(JSON.stringify(draft)).length;
     if(totalBytes+draftBytes>12*1024*1024)throw Error('oversized_conversation');
     captures.push(draft);totalBytes+=draftBytes;
-    await saveDocuments(true,'outputs',1);
     const seenImages=new Set();
     const saveImages=async()=>{
      if(!remainingImages)return;
@@ -289,11 +288,10 @@ async function main(){
       images.skipped++;
      }
     };
-    await saveImages();
     await progress('history',initial.messages.length);
     const history=await collectHistory(initial,{
      read:async()=>{const window=await state('messages');await progress('history',window.messages.length);return window;},
-     scroll:offset=>state('history-scroll',offset),pause:sleep,visit:async()=>{await saveImages();await saveDocuments(true,'history',2);}
+     scroll:offset=>state('history-scroll',offset),pause:sleep
     });
     const needsTailCheck=history.history==='visible_start' &&
       (initial.unsettled || initial.view.top+initial.view.viewport<initial.view.height-5);
@@ -306,6 +304,20 @@ async function main(){
      captures[captureIndex]=capture;totalBytes+=sizeChange;extraBytes+=sizeChange;
     };
     retainHistory();
+    if(history.failure)throw Error(history.failure);
+    // File viewers can change the scroll root or swap frames. Finish and
+    // retain the transcript before opening any of them.
+    for(let window=0; window<480 && (documentBudget.left>0 || remainingImages>0); window++){
+     const before=await state('messages');
+     await saveImages();
+     await saveDocuments(true,'outputs',2);
+     if(before.view.top+before.view.viewport>=before.view.height-5)break;
+     const step=Math.max(100,Math.floor(before.view.viewport*0.75));
+     await state('history-scroll',before.view.top+step);
+     await sleep(700);
+     const after=await state('messages');
+     if(after.view.top<=before.view.top && after.view.height===before.view.height)break;
+    }
     if(needsTailCheck || documentBudget.left>0){
      const current=await state('messages');
      await state('history-scroll',current.view.height);

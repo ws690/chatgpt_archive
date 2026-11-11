@@ -94,6 +94,7 @@ export async function collectHistory(initial, {read, scroll, pause, visit}) {
       }
     }
   } catch (error) {
+    if (error?.message === 'chatgpt_unreachable') return {messages:saved, history:'gap',failure:error.message};
     if (error?.message !== 'run_timeout') throw error;
   }
   return {messages:saved, history:'limit'};
