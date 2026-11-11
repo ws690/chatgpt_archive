@@ -99,7 +99,7 @@ def tidy_chats():
             old.unlink()
 
 
-def refresh_chat_masters():
+def refresh_chat_masters(*, force=False):
     with sqlite3.connect(ROOT / 'database/index.sqlite3') as db:
         chats = db.execute('''SELECT f.id,f.folder,MAX(v.rowid),m.version,m.latest
                               FROM chat_folders f JOIN versions v ON v.id=f.id
@@ -109,19 +109,22 @@ def refresh_chat_masters():
             target = chat / (folder + '.md')
             if chat.is_symlink() or target.is_symlink():
                 raise ValueError('Unsafe master transcript path')
-            if latest == previous_latest and target.is_file():
+            if not force and latest == previous_latest and target.is_file():
                 continue
             versions = db.execute('SELECT hash,path FROM versions WHERE id=? ORDER BY rowid DESC',
                                   (cid,)).fetchall()
             selected = None
+            most_turns = -1
             for version, path in versions:
                 source = ROOT / path
                 record = json.loads(source.read_text(encoding='utf-8'))
                 capture = record.get('capture')
                 complete = not cid.startswith('browser-') or (
                     isinstance(capture, dict) and capture.get('history') == 'visible_start')
-                if selected is None or complete:
+                turns = len(record.get('mapping') or {})
+                if complete or turns > most_turns:
                     selected = version, record, complete
+                    most_turns = turns
                 if complete:
                     break
             version, record, complete = selected
