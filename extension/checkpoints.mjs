@@ -16,7 +16,8 @@ export function transcriptFingerprint(title, messages) {
 }
 
 export function isUnchanged(previous, fingerprint, now = Date.now()) {
-  return previous?.fingerprint === fingerprint && previous.checkedAt <= now &&
+  return typeof previous?.full === 'string' && previous.full.length > 0 &&
+    previous.fingerprint === fingerprint && previous.checkedAt <= now &&
     now - previous.checkedAt < WEEK;
 }
 
@@ -24,4 +25,9 @@ export function isUnchanged(previous, fingerprint, now = Date.now()) {
 export function rotateChats(entries, after, limit, identify) {
   const next = entries.findIndex(([path]) => identify(path) === after) + 1;
   return [...entries.slice(next), ...entries.slice(0, next)].slice(0, limit);
+}
+
+// Targeted repair runs use the same verified checkpoints as scheduled runs.
+export function usesIncrementalMode(params) {
+  return params.get('mode') !== 'full' && (params.get('mode') === 'daily' || params.get('limit') !== '3');
 }

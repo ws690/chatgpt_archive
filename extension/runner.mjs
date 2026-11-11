@@ -2,7 +2,7 @@ import {HOST,ORIGIN,inspectPage,validChatPath,chatId,safeError} from './core.mjs
 import {collectDocuments} from './documents.mjs';
 import {saveChatImages} from './chat-files.mjs';
 import {collectHistory,mergeEarlier} from './history.mjs';
-import {chatFingerprint,isUnchanged,transcriptFingerprint,rotateChats} from './checkpoints.mjs';
+import {chatFingerprint,isUnchanged,transcriptFingerprint,rotateChats,usesIncrementalMode} from './checkpoints.mjs';
 const display=document.querySelector('#status');
 const sleep=async ms=>{
  const result=await chrome.runtime.sendMessage({kind:'delay',ms}).catch(()=>null);
@@ -197,7 +197,7 @@ async function main(){
    }
    if(!seen.size){await state('links');throw Error('no_visible_chats');}
   }
-  const incremental=!target&&params.get('mode')!=='full'&&(params.get('mode')==='daily'||params.get('limit')!=='3');
+  const incremental=usesIncrementalMode(params);
   const {chatCheckpoints={}}=await chrome.storage.local.get('chatCheckpoints');
   const updatedCheckpoints={};
   const saveCheckpoints=async()=>{

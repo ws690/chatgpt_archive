@@ -51,7 +51,8 @@ test('history narrows scroll steps if a window would leave a gap',async()=>{
 test('unchanged chats can skip history until the weekly recheck',async()=>{
  const messages=Array.from({length:8},(_,i)=>({role:'user',key:String(i),text:String(i)}));
  const fingerprint=await chatFingerprint('Kitchen',{messages,imageCount:0});
- const previous={fingerprint,checkedAt:0};
+ const previous={fingerprint,full:await transcriptFingerprint('Kitchen',messages),checkedAt:0};
+ assert.equal(isUnchanged({fingerprint,checkedAt:0},fingerprint,1000),false);
  assert.equal(isUnchanged(previous,fingerprint,1000),true);
  assert.equal(isUnchanged(previous,fingerprint,7*24*60*60*1000),false);
  assert.notEqual(await chatFingerprint('Kitchen',{messages,imageCount:1}),fingerprint);
