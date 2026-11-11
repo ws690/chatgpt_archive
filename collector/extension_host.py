@@ -135,8 +135,8 @@ def execute(message):
     failed=source.get('failed',0)
     discovered=source.get('discovered',len(captures))
     if type(failed) is not int or not 0<=failed<=50 or type(discovered) is not int or not len(captures)<=discovered<=20000:raise ValueError('invalid_report')
-    stops={'chat_limit','scroll_limit','sidebar_stable_not_proof_of_completeness','requested_chat'}
-    scopes={'sidebar','visible_chat_links','requested_chat'}
+    stops={'chat_limit','scroll_limit','sidebar_stable_not_proof_of_completeness','requested_chat','project_visible_links'}
+    scopes={'sidebar','visible_chat_links','requested_chat','project'}
     report={'schema':1,'source':'nas-browser-extension','status':'partial_capture_with_errors' if failed else 'partial_capture','account_complete':False,'captured_at':dt.datetime.now(dt.timezone.utc).isoformat(),'captured':len(captures),'failed':failed,'discovered':discovered,'discovery_stop':source.get('discovery_stop') if source.get('discovery_stop') in stops else 'unknown','discovery_scope':source.get('discovery_scope') if source.get('discovery_scope') in scopes else 'unknown'}
     add_file_counts(source, report, 'images')
     add_file_counts(source, report, 'documents')

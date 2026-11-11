@@ -7,3 +7,17 @@ From the repository root, run `graphify update .` to refresh the local code grap
 Open this documentation folder as an Obsidian vault. Keep private incident notes, site-specific paths, account details, and archives in private storage outside this repository.
 
 See [[Architecture]].
+
+## Targeted project backfill
+
+The runner accepts a `project` parameter with a URL-encoded ChatGPT project
+pathname of the form `/g/g-p-…/project`. It inventories visible chat links on
+that project page and attempts one chat per invocation. A project-specific
+cursor is stored in the NAS browser profile independently of the daily
+account cursor. Repeated invocations cycle through the visible chats and
+reuse existing transcript and attachment checkpoints.
+
+The visible chat count is a discovery result. Reconcile it with the project
+in the browser before treating the backfill as complete. Project-level
+files and instructions require separate validation. The importer polls
+the staged downloads independently of transcript changes.

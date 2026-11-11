@@ -115,11 +115,32 @@ async function main(){
   await progress('discovery');
   const params=new URL(location.href).searchParams;
   const target=params.get('chat');
+  const project=params.get('project');
+  if(project && (target || !/^\/g\/g-p-[A-Za-z0-9_-]+\/project\/?$/.test(project)))throw Error('page_or_browser_error');
   if(target && !validChatPath(target))throw Error('page_or_browser_error');
   const seen=new Map();let stable=0,stop='scroll_limit',scope='sidebar';
   if(target){
    seen.set(target,params.get('title')?.trim().slice(0,1024)||'Untitled');
    stop=scope='requested_chat';
+  }else if(project){
+   const tab=await chrome.tabs.create({url:'about:blank',active:true});
+   tabId=tab.id;ownedTab=true;
+   await navigate(ORIGIN+project);
+   stop='project_visible_links';scope='project';
+   const ids=new Set();
+   let stable=0;
+   for(let attempt=0; attempt<20 && stable<3; attempt++){
+    const before=seen.size;
+    const page=await state('project-links');
+    for(const link of page.links){
+     if(!validChatPath(link.path) || ids.has(chatId(link.path)))continue;
+     ids.add(chatId(link.path));
+     seen.set(link.path,link.title);
+    }
+    stable=seen.size && seen.size===before ? stable+1 : 0;
+    if(stable<3)await sleep(2000);
+   }
+   if(!seen.size)throw Error('no_visible_chats');
   }else{
    const existing=await chrome.tabs.query({url:ORIGIN+'/*'});
    const candidates=existing.filter(t=>validChatPath(new URL(t.url).pathname)||new URL(t.url).pathname==='/')
@@ -212,14 +233,15 @@ async function main(){
   let remainingImages=50;
   const documentBudget={left:target?24:12};
   const rotating=!target&&params.get('limit')!=='3';
-  const {lastArchiveAttempt}=rotating?await chrome.storage.local.get('lastArchiveAttempt'):{};
-  const batch=rotating?rotateChats([...seen],lastArchiveAttempt,50,chatId):[...seen];
+  const cursorKey=project ? 'projectArchiveAttempt:'+project.replace(/\/$/,'') : 'lastArchiveAttempt';
+  const cursor=rotating?(await chrome.storage.local.get(cursorKey))[cursorKey]:undefined;
+  const batch=rotating?rotateChats([...seen],cursor,project?1:50,chatId):[...seen];
   for(const [path,title] of batch){
    try{
     await alive();
     attemptedChats++;
     await progress('opening_chat');
-    if(rotating)await chrome.storage.local.set({lastArchiveAttempt:chatId(path)});
+    if(rotating)await chrome.storage.local.set({[cursorKey]:chatId(path)});
     if(ownedTab)await chrome.tabs.remove(tabId);
     const tab=await chrome.tabs.create({url:'about:blank',active:true});
     tabId=tab.id;ownedTab=true;
