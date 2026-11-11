@@ -58,6 +58,28 @@ def execute(message):
         result={'at':dt.datetime.now(dt.timezone.utc).isoformat(),'counts':counts,'attributes':attributes,'author_attributes':authors}
         archive.atomic_json(archive.STATE/'extension-layout.json',result)
         return {'ok':True}
+    if cmd in ('read_history_resume', 'write_history_resume'):
+        cid = message.get('id')
+        if not isinstance(cid, str) or not re.fullmatch(r'[A-Za-z0-9-]{1,100}', cid):
+            raise ValueError('invalid_history_chat')
+        folder = archive.STATE / 'history-resume'
+        path = folder / (cid + '.json')
+        if folder.is_symlink() or path.is_symlink():
+            raise ValueError('unsafe_history_resume')
+        if cmd == 'read_history_resume':
+            return {'ok': True, 'resume': json.loads(path.read_text()) if path.is_file() else None}
+        resume = message.get('resume')
+        if (not isinstance(resume, dict) or not isinstance(resume.get('messages'), list)
+                or len(json.dumps(resume).encode()) > 4 * 1024**2):
+            raise ValueError('invalid_history_resume')
+        if path.is_file():
+            previous = json.loads(path.read_text())
+            if (previous.get('fingerprint') == resume.get('fingerprint')
+                    and len(previous.get('messages', [])) > len(resume['messages'])):
+                return {'ok': True}
+        folder.mkdir(mode=0o700, exist_ok=True)
+        archive.atomic_json(path, resume)
+        return {'ok': True}
     if cmd == 'progress':
         phase = message.get('phase')
         phases = {'discovery','opening_chat','stabilizing','outputs','history','publishing'}

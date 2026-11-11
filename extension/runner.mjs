@@ -1,7 +1,7 @@
 import {HOST,ORIGIN,inspectPage,validChatPath,chatId,safeError} from './core.mjs';
 import {collectDocuments} from './documents.mjs';
 import {saveChatImages} from './chat-files.mjs';
-import {collectHistory,mergeEarlier} from './history.mjs';
+import {collectHistory,mergeEarlier,matchesResumeAnchor} from './history.mjs';
 import {chatFingerprint,isUnchanged,transcriptFingerprint,rotateChats,usesIncrementalMode} from './checkpoints.mjs';
 const display=document.querySelector('#status');
 const sleep=async ms=>{
@@ -260,7 +260,7 @@ async function main(){
      }
      throw error;
     }
-    const fingerprint=await chatFingerprint(title,initial);
+    let fingerprint=await chatFingerprint(title,initial);
     if(incremental && !initial.unsettled && isUnchanged(chatCheckpoints[id],fingerprint)){
      await saveDocuments(true);
      unchanged++;
@@ -288,11 +288,40 @@ async function main(){
       images.skipped++;
      }
     };
-    await progress('history',initial.messages.length);
-    const history=await collectHistory(initial,{
-     read:async()=>{const window=await state('messages');await progress('history',window.messages.length);return window;},
-     scroll:offset=>state('history-scroll',offset),pause:sleep
+    const readHistoryWindow=async()=>{
+     const window=await state('messages');
+     await progress('history',window.messages.length);
+     return window;
+    };
+    const scrollHistory=offset=>state('history-scroll',offset);
+    let historyStart=initial,savedMessages=initial.messages;
+    if(incremental && !initial.unsettled && !chatCheckpoints[id]?.full){
+     const response=await native({cmd:'read_history_resume',id}).catch(()=>null);
+     const resume=response?.resume;
+     if(resume?.fingerprint===fingerprint && Number.isFinite(resume.top) && resume.top>=0){
+      await scrollHistory(resume.top);
+      await sleep(1500);
+      const candidate=await readHistoryWindow();
+      if(matchesResumeAnchor(resume.messages,candidate)){
+       historyStart=candidate;
+       savedMessages=resume.messages;
+      }else{
+       await scrollHistory(initial.view.height);
+       await sleep(1500);
+       historyStart=await messages();
+       savedMessages=historyStart.messages;
+      }
+     }
+    }
+    await progress('history',savedMessages.length);
+    const history=await collectHistory(historyStart,{
+     read:readHistoryWindow,scroll:scrollHistory,pause:sleep,savedMessages
     });
+    if(history.anchor && !initial.unsettled && history.messages[0]?.key){
+     await native({cmd:'write_history_resume',id,resume:{
+      fingerprint,top:history.anchor.top,messages:history.messages
+     }}).catch(()=>{});
+    }
     const needsTailCheck=history.history==='visible_start' &&
       (initial.unsettled || initial.view.top+initial.view.viewport<initial.view.height-5);
     if(needsTailCheck)history.history='stalled';
@@ -313,7 +342,11 @@ async function main(){
      const tail=await messages();
      if(!tail.unsettled && tail.view.top+tail.view.viewport>=tail.view.height-5){
       const joined=mergeEarlier(tail.messages,history.messages);
-      if(joined){history.messages=joined;history.history='visible_start';retainHistory();}
+      if(joined){
+       history.messages=joined;history.history='visible_start';
+       fingerprint=await chatFingerprint(title,tail);
+       retainHistory();
+      }
      }
      await state('history-scroll',start.view.top);
      await sleep(1500);

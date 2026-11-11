@@ -45,8 +45,22 @@ export function mergeEarlier(saved, earlier) {
   return null;
 }
 
-export async function collectHistory(initial, {read, scroll, pause, visit}) {
-  let saved = initial.messages;
+// An offset is only a hint. Never join a saved transcript to an unverified viewport.
+export function matchesResumeAnchor(saved, window) {
+  if (!Array.isArray(saved) || saved.length < 2 || window.pending || window.streaming) return false;
+  const [first, second] = saved;
+  if (!first.key || !second.key || first.key === second.key) return false;
+  return window.messages.some((row, index) => {
+    const next = window.messages[index+1];
+    return row.key === first.key && row.text === first.text &&
+      next?.key === second.key && next.text === second.text;
+  });
+}
+
+export async function collectHistory(initial, {read, scroll, pause, visit, savedMessages=initial.messages}) {
+  let saved = savedMessages;
+  let anchor = initial.view;
+  const partial=(history,failure)=>({messages:saved,history,anchor,failure});
   let current = initial;
   let stride = Math.max(200, initial.view.viewport * 2);
   let consecutiveJoins = 0;
@@ -69,7 +83,7 @@ export async function collectHistory(initial, {read, scroll, pause, visit}) {
       if (!joined || next.pending || next.streaming) {
         const growth = Math.max(0, next.view.height - current.view.height);
         if (!growth && (stride <= 150 || current.view.top <= 2)) {
-          return {messages:saved, history:'gap'};
+          return partial('gap');
         }
         current = {...current, view:{...next.view,top:current.view.top + growth}};
         consecutiveJoins = 0;
@@ -77,15 +91,16 @@ export async function collectHistory(initial, {read, scroll, pause, visit}) {
         continue;
       }
       if (joined.length > 10000 || joined.reduce((sum, turn) => sum + turn.text.length, 0) > 1048576) {
-        return {messages:saved, history:'limit'};
+        return partial('limit');
       }
       const grew = joined.length > saved.length;
       const unchanged = joined === saved && next.view.height === current.view.height;
       topChecks = next.view.top <= 2 && unchanged ? topChecks + 1 : 0;
       if (topChecks >= 4) return {messages:joined, history:'visible_start'};
       stalled = next.view.top >= current.view.top - 2 && next.view.top > 2 && unchanged ? stalled + 1 : 0;
-      if (stalled >= 4) return {messages:joined, history:'stalled'};
+      if (stalled >= 4) return {...partial('stalled'),messages:joined};
       current = next;
+      if(joined[0]?.key && next.messages.some(row=>row.key===joined[0].key))anchor=next.view;
       saved = joined;
       if (grew) await visit?.();
       if (topChecks === 0 && stalled === 0 && ++consecutiveJoins >= 3) {
@@ -94,8 +109,8 @@ export async function collectHistory(initial, {read, scroll, pause, visit}) {
       }
     }
   } catch (error) {
-    if (error?.message === 'chatgpt_unreachable') return {messages:saved, history:'gap',failure:error.message};
+    if (error?.message === 'chatgpt_unreachable') return partial('gap',error.message);
     if (error?.message !== 'run_timeout') throw error;
   }
-  return {messages:saved, history:'limit'};
+  return partial('limit');
 }
