@@ -1,7 +1,7 @@
 import {HOST,ORIGIN,inspectPage,validChatPath,chatId,safeError} from './core.mjs';
 import {collectDocuments} from './documents.mjs';
 import {saveChatImages} from './chat-files.mjs';
-import {collectHistory} from './history.mjs';
+import {collectHistory,mergeEarlier} from './history.mjs';
 import {chatFingerprint,isUnchanged,transcriptFingerprint,rotateChats} from './checkpoints.mjs';
 const display=document.querySelector('#status');
 const sleep=async ms=>{
@@ -290,20 +290,33 @@ async function main(){
      read:async()=>{const window=await state('messages');await progress('history',window.messages.length);return window;},
      scroll:offset=>state('history-scroll',offset),pause:sleep,visit:async()=>{await saveImages();await saveDocuments(true,'history',2);}
     });
-    if(history.history==='visible_start' &&
-       (initial.unsettled || initial.view.top+initial.view.viewport<initial.view.height-5))history.history='stalled';
-    const capture=makeCapture(history,history.history);
-    const complete=history.history==='visible_start';
-    const full=complete ? await transcriptFingerprint(title,capture.messages) : undefined;
-    const extraBytes=encoder.encode(JSON.stringify(capture)).length-draftBytes;
-    if(totalBytes+extraBytes>12*1024*1024)throw Error('oversized_conversation');
-    captures[captureIndex]=capture;totalBytes+=extraBytes;
-    if(documentBudget.left>0){
+    const needsTailCheck=history.history==='visible_start' &&
+      (initial.unsettled || initial.view.top+initial.view.viewport<initial.view.height-5);
+    if(needsTailCheck)history.history='stalled';
+    let extraBytes=0;
+    const retainHistory=()=>{
+     const capture=makeCapture(history,history.history);
+     const sizeChange=encoder.encode(JSON.stringify(capture)).length-draftBytes-extraBytes;
+     if(totalBytes+sizeChange>12*1024*1024)throw Error('oversized_conversation');
+     captures[captureIndex]=capture;totalBytes+=sizeChange;extraBytes+=sizeChange;
+    };
+    retainHistory();
+    if(needsTailCheck || documentBudget.left>0){
      const current=await state('messages');
      await state('history-scroll',current.view.height);
      await sleep(1500);
-     await saveDocuments(true);
+     if(needsTailCheck){
+      await progress('stabilizing');
+      const tail=await messages();
+      if(!tail.unsettled && tail.view.top+tail.view.viewport>=tail.view.height-5){
+       const joined=mergeEarlier(tail.messages,history.messages);
+       if(joined){history.messages=joined;history.history='visible_start';retainHistory();}
+      }
+     }
+     if(documentBudget.left>0)await saveDocuments(true);
     }
+    const complete=history.history==='visible_start';
+    const full=complete ? await transcriptFingerprint(title,captures[captureIndex].messages) : undefined;
     const checkpoint={fingerprint,full,checkedAt:Date.now(),documents:documentKeys(),documentAttempts:documentAttempts()};
     if(incremental && complete && chatCheckpoints[id]?.full===full){
      updatedCheckpoints[id]=checkpoint;
