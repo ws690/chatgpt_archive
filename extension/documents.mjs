@@ -72,10 +72,24 @@ export function documentCards(path, action, key, name) {
     const [, operation, filename] = match;
     outputCards.set(JSON.stringify(['output', filename]), {filename, button, generated:true, direct:operation==='Download'});
   }
+  const directFor = card => {
+    if (!card?.generated) return null;
+    for (let parent=card.button.parentElement, depth=0; parent && depth<4; parent=parent.parentElement, depth++) {
+      const previews=parent.querySelectorAll('button[aria-label^="Open preview of "]');
+      if (previews.length!==1) break;
+      const downloads=[...parent.querySelectorAll('button[aria-label="Download file"]')]
+        .filter(button=>rendered(button) && !button.disabled);
+      if (downloads.length===1) return downloads[0];
+    }
+    return null;
+  };
   if (action === 'output-list') return [...outputCards].map(([id, card]) => [id, card.filename]);
   if (action === 'output-open') {
     const card = outputCards.get(key);
     if (!card || card.filename !== name || card.button.disabled) return false;
+    const inline=[...cards.values()].filter(item=>item.generated && item.filename===name);
+    const direct=inline.length===1 ? directFor(inline[0]) : null;
+    if (direct){direct.click();return 'direct';}
     card.button.click();
     return card.direct ? 'direct' : 'viewer';
   }
@@ -83,6 +97,8 @@ export function documentCards(path, action, key, name) {
   if (action === 'open') {
     const card = cards.get(key);
     if (!card || card.filename !== name || card.button.disabled) return false;
+    const direct=directFor(card);
+    if (direct){direct.click();return 'direct';}
     card.button.click();
     return true;
   }
@@ -91,9 +107,9 @@ export function documentCards(path, action, key, name) {
     const stem = dot > 0 ? name.slice(0, dot) : name;
     const viewer = [...document.querySelectorAll('button[aria-haspopup="menu"]')].some(button =>
       ['File actions for ' + stem, 'File actions for ' + name].includes(button.getAttribute('aria-label')));
-    const buttons = document.querySelectorAll('button[aria-label="Download"]');
+    const buttons = [...document.querySelectorAll('button[aria-label="Download"]')].filter(rendered);
     const generated = cards.get(key)?.generated || key?.startsWith('["output",');
-    const viewerOpen = !!document.querySelector('button[aria-label="Close viewer"]');
+    const viewerOpen = [...document.querySelectorAll('button[aria-label="Close viewer"]')].some(rendered);
     if ((!viewer && !(generated && viewerOpen)) || buttons.length !== 1 ||
         buttons[0].disabled || buttons[0].getAttribute('aria-busy') === 'true') return false;
     buttons[0].click();

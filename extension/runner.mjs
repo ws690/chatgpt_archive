@@ -29,6 +29,11 @@ async function state(mode,offset){
   catch(error){
    const tab=await chrome.tabs.get(tabId);
    if(authPage(tab.url)||/https:\/\/auth\.openai\.com\//i.test(error.message))throw Error('authentication_required');
+   if(attempt<6 && tab.url?.startsWith(ORIGIN+'/') &&
+      /frame|context|document|tab was closed/i.test(error.message)){
+    await sleep(1500);
+    continue;
+   }
    throw Error('chatgpt_unreachable');
   }
   const s=result[0]?.result;if(!s)throw Error('page_or_browser_error');
