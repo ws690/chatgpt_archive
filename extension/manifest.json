@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "NAS Chat Archive (local)",
+  "version": "1.0.14",
+  "description": "Best-effort visible ChatGPT text collection to your local NAS archive. Not an official OpenAI export.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA8cxzEAul0PeIaOd1IfvmRblXhvI3bGgOzVxK5ePt49mWKq/nQ2cvXR4fX2exqZ91xTR9CXaJpm339IDINSXL7KohaWBtCSChKDQnqe+bOgSBwkgZaTreXT3ABl8nWAzR/Ywz8mt88iPv8j6LbwgEYT9TWMMC6BLyi9NeRg9o8lB9UauGpcZyIAQaTgFCdmwIAFyli6zHay9gf8N15WGhsrvgUFDGwz2bbfe0xXYD//qwLP61WzlcsIqE3ndAgaQ382po0w5ngXLd+AjwuJ/9Ylc+23Mob3U5UOp+eOi2tAoRdnNGILG8L/APTLmifoEek8cSpAOijvrNDFe8UxCKPwIDAQAB",
+  "permissions": [
+    "storage",
+    "scripting",
+    "nativeMessaging",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*"
+  ],
+  "background": {
+    "service_worker": "worker.mjs",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'"
+  }
+}

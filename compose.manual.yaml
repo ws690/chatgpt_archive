@@ -1,0 +1,10 @@
+# Diagnostic only: ordinary Chrome on NAS, no automation controller attached.
+services:
+  collector:
+    command: ["sh", "/collector/auth.manual.sh"]
+    restart: "no"
+    volumes:
+      - ./collector/auth.manual.sh:/collector/auth.manual.sh:ro
+      - ./collector/manual-login.py:/collector/manual-login.py:ro
+    healthcheck:
+      disable: true

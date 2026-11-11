@@ -1,0 +1,7 @@
+# Reuses a profile signed in manually on the NAS; no credential export.
+FROM chatgpt-qnap-collector:chrome
+USER root
+COPY collector.py /collector/collector.py
+RUN chmod 644 /collector/collector.py
+USER pwuser
+ENV BROWSER_ENGINE=chromium BROWSER_CHANNEL=chrome BROWSER_PROFILE=profile-manual-chrome

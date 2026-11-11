@@ -1,0 +1,7 @@
+# Run ONLY after stopping collector. SSH tunnel required for VNC access.
+services:
+  collector:
+    restart: "no"
+    command: ["/collector/auth.sh"]
+    healthcheck:
+      disable: true

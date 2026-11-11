@@ -1,0 +1,8 @@
+# Optional stable-Chrome compatibility test; leaves the original image intact.
+FROM chatgpt-qnap-collector:local
+USER root
+RUN playwright install chrome
+COPY collector.py /collector/collector.py
+RUN chmod 644 /collector/collector.py
+USER pwuser
+ENV BROWSER_CHANNEL=chrome

@@ -1,0 +1,9 @@
+{
+  "name": "local.nas_chat_archive",
+  "description": "Write local visible chat captures to the NAS inbox",
+  "path": "/collector/extension_host.py",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://oghmfmbncdhcnkkldpmagkgjafbhmcbo/"
+  ]
+}

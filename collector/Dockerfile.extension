@@ -1,0 +1,8 @@
+FROM chatgpt-qnap-collector:chrome
+USER root
+COPY collector.py extension_host.py chat_files.py native-host.json extension-browser.py extension-browser.sh extension-health.py extension_schedule.py /collector/
+COPY download-policy.json /etc/opt/chrome/policies/managed/nas-chat-archive-downloads.json
+RUN chmod 755 /collector/extension_host.py /collector/extension-browser.sh && chmod 644 /collector/collector.py /collector/chat_files.py /collector/native-host.json /collector/extension-browser.py /collector/extension-health.py && mkdir -p /etc/opt/chrome/native-messaging-hosts /etc/chromium/native-messaging-hosts /etc/opt/chrome_for_testing/native-messaging-hosts && cp /collector/native-host.json /etc/opt/chrome/native-messaging-hosts/local.nas_chat_archive.json && cp /collector/native-host.json /etc/chromium/native-messaging-hosts/local.nas_chat_archive.json
+RUN cp /collector/native-host.json /etc/opt/chrome_for_testing/native-messaging-hosts/local.nas_chat_archive.json
+USER pwuser
+CMD ["sh", "/collector/extension-browser.sh"]

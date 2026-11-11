@@ -1,0 +1,10 @@
+services:
+  collector:
+    build:
+      context: ./collector
+      dockerfile: Dockerfile.session
+    image: chatgpt-qnap-collector:session
+    environment:
+      BROWSER_ENGINE: chromium
+      BROWSER_CHANNEL: chrome
+      BROWSER_PROFILE: profile-manual-chrome

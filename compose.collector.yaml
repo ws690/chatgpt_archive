@@ -1,0 +1,36 @@
+# Use with compose.yaml; never grants collector access to the full archive.
+services:
+  collector:
+    build: ./collector
+    image: chatgpt-qnap-collector:local
+    restart: unless-stopped
+    init: true
+    user: "${COLLECTOR_UID:-1000}:${COLLECTOR_GID:-100}"
+    environment:
+      TZ: Europe/London
+      MAX_CHATS: "${MAX_CHATS:-50}"
+      MAX_SCROLLS: "${MAX_SCROLLS:-20}"
+    volumes:
+      - ${ARCHIVE_ROOT:-/share/ChatGPT-Archive}/inbox:/inbox
+      - ${COLLECTOR_ROOT:-/share/ChatGPT-Collector}:/state
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./collector/seccomp_profile.json
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    shm_size: 256m
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    cpus: 1.0
+    pids_limit: 256
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+    healthcheck:
+      test: ["CMD", "python", "/collector/health.py"]
+      interval: 5m
+      timeout: 10s
+      retries: 1
+      start_period: 35m

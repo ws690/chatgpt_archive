@@ -1,0 +1,7 @@
+# Uses the Firefox build bundled with the matching Playwright image.
+FROM chatgpt-qnap-collector:local
+USER root
+COPY collector.py /collector/collector.py
+RUN chmod 644 /collector/collector.py
+USER pwuser
+ENV BROWSER_ENGINE=firefox

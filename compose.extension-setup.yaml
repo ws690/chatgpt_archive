@@ -1,0 +1,7 @@
+services:
+  collector:
+    environment:
+      EXTENSION_SETUP: "1"
+      EXTENSION_START_URL: "${EXTENSION_START_URL:-}"
+    healthcheck:
+      disable: true

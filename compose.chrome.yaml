@@ -1,0 +1,9 @@
+# Optional supported-browser test. Add before compose.auth.yaml for manual login.
+services:
+  collector:
+    build:
+      context: ./collector
+      dockerfile: Dockerfile.chrome
+    image: chatgpt-qnap-collector:chrome
+    environment:
+      BROWSER_CHANNEL: chrome

@@ -1,0 +1,5 @@
+{
+  "DownloadDirectory": "/chat-files",
+  "PromptForDownloadLocation": false,
+  "AutomaticDownloadsAllowedForUrls": ["https://chatgpt.com"]
+}

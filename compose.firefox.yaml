@@ -1,0 +1,9 @@
+services:
+  collector:
+    build:
+      context: ./collector
+      dockerfile: Dockerfile.firefox
+    image: chatgpt-qnap-collector:firefox
+    environment:
+      BROWSER_ENGINE: firefox
+      BROWSER_CHANNEL: ""

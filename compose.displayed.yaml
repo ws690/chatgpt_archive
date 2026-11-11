@@ -1,0 +1,9 @@
+# Actual displayed browser mode, without a VNC port or any fingerprint changes.
+services:
+  collector:
+    command: ["sh", "/collector/collect-displayed.sh", "schedule"]
+    environment:
+      HEADLESS: "0"
+    volumes:
+      - ./collector/collector.py:/collector/collector.py:ro
+      - ./collector/collect-displayed.sh:/collector/collect-displayed.sh:ro

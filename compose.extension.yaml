@@ -1,0 +1,24 @@
+# Ordinary Chrome + local extension. Keeps original archive engine unchanged.
+services:
+  collector:
+    build:
+      context: ./collector
+      dockerfile: Dockerfile.extension
+    image: chatgpt-qnap-collector:extension
+    command: ["sh", "/collector/extension-browser.sh"]
+    environment:
+      EXTENSION_SETUP: "0"
+      EXTENSION_START_URL: "${EXTENSION_START_URL:-}"
+    volumes:
+      - ./extension:/extension:ro
+      - type: bind
+        source: "${ARCHIVE_ROOT:-/share/ChatGPT-Archive}/archive/ChatGPT Files"
+        target: /chat-files
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "python", "/collector/extension-health.py"]
+      interval: 5m
+      timeout: 10s
+      retries: 1
+      start_period: 35m

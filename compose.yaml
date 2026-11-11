@@ -1,0 +1,24 @@
+services:
+  chatgpt-backup:
+    build: .
+    image: chatgpt-backup:nas-collector-v1
+    container_name: chatgpt-backup
+    restart: unless-stopped
+    network_mode: none
+    environment:
+      BACKUP_ROOT: /data
+      TZ: Europe/London
+    volumes:
+      - ${ARCHIVE_ROOT:-/share/ChatGPT-Archive}:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m
+    pids_limit: 128
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
