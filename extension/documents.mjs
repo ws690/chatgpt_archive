@@ -252,6 +252,9 @@ export async function collectDocuments({tabId, path, id, title, saved, seen, att
       if (opened) await page('close').catch(() => {});
       if (!saved.has(key)) {
         report.skipped++;
+        await chrome.runtime.sendNativeMessage(HOST, {
+          cmd: 'document_issue', id, filename, failure
+        }).catch(() => {});
         report.skipReasons ??= {};
         report.skipReasons[failure] = (report.skipReasons[failure] || 0) + 1;
         if (downloadId !== undefined) await chrome.downloads.cancel(downloadId).catch(() => {});

@@ -242,9 +242,17 @@ async function main(){
     if(ownedTab)await chrome.tabs.remove(tabId);
     const tab=await chrome.tabs.create({url:'about:blank',active:true});
     tabId=tab.id;ownedTab=true;
-    await navigate(ORIGIN+path);
-    const s=await state('links');
-    if(!sameChat(s.path,path))throw Error('chatgpt_unreachable');
+    for(let attempt=0; ; attempt++){
+     try{
+      await navigate(ORIGIN+path);
+      const s=await state('links');
+      if(!sameChat(s.path,path))throw Error('chatgpt_unreachable');
+      break;
+     }catch(error){
+      if(safeError(error)!=='chatgpt_unreachable' || attempt===2)throw error;
+      await sleep(attempt===0?2500:5000);
+     }
+    }
     networkFailures=0;
     const id=chatId(path);
     const savedDocuments=new Set(chatCheckpoints[id]?.documents || []);

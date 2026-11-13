@@ -42,6 +42,20 @@ def execute(message):
                             {'day': now.astimezone(archive.TZ).date().isoformat(),
                              'state': state, 'at': now.isoformat()})
         return {'ok': True}
+    if cmd == 'document_issue':
+        cid, filename, failure = (message.get(key) for key in ('id', 'filename', 'failure'))
+        if not isinstance(cid, str) or not re.fullmatch(r'[A-Za-z0-9-]{1,100}', cid):
+            raise ValueError('invalid_id')
+        if not isinstance(filename, str) or not 1 <= len(filename) <= 191:
+            raise ValueError('invalid_filename')
+        if not isinstance(failure, str) or not re.fullmatch(r'[a-z_]{1,40}', failure):
+            raise ValueError('invalid_failure')
+        path = archive.STATE / 'extension-document-issues.jsonl'
+        fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, 'a', encoding='utf-8') as log:
+            log.write(json.dumps({'at': dt.datetime.now(dt.timezone.utc).isoformat(),
+                                  'id': cid, 'filename': filename, 'reason': failure}) + '\n')
+        return {'ok': True}
     if cmd == 'stage_document':
         return stage_document(message)
     if cmd == 'save_image':

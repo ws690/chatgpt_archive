@@ -27,3 +27,5 @@ The browser run lock renews while the runner is responsive. Individual page oper
 A later complete browser capture can advance an export-backed master if its
 rendered transcript preserves the entire baseline as an exact prefix.
 A partial capture or a representation mismatch keeps the verified baseline.
+
+Transient chat-opening errors receive two retries. Skipped attachment names and reasons are recorded in the private NAS state file `extension-document-issues.jsonl`.
