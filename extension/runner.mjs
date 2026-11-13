@@ -8,15 +8,13 @@ const sleep=async ms=>{
  const result=await chrome.runtime.sendMessage({kind:'delay',ms}).catch(()=>null);
  if(!result?.ok)await new Promise(resolve=>setTimeout(resolve,ms));
 };
-let cancelled=false,tabId,runId,runExpires,keepTab=false,ownedTab=false;
+let cancelled=false,tabId,runId,keepTab=false,ownedTab=false;
 const humanStep=reason=>['authentication_required','authentication_challenge','route_error'].includes(reason);
 const authPage=value=>/^https:\/\/(?:auth\.openai\.com(?:\/|$)|chatgpt\.com\/(?:auth|log-in)(?:\/|$))/i.test(value||'');
 const sameChat=(left,right)=>left===right||(validChatPath(left)&&validChatPath(right)&&chatId(left)===chatId(right));
 document.querySelector('#cancel').onclick=()=>{cancelled=true;};
-async function alive({publishing=false}={}){
+async function alive(){
  if(cancelled)throw Error('run_cancelled');
- // Leave enough time to publish captured chats before another run can claim the lock.
- if(!publishing && Date.now()>=runExpires-120000)throw Error('run_timeout');
  if(!(await chrome.runtime.sendMessage({kind:'alive',id:runId})).ok)throw Error('run_timeout');
 }
 async function native(message){try{return await chrome.runtime.sendNativeMessage(HOST,message);}catch{throw Error('local_writer_unavailable');}}
@@ -97,7 +95,6 @@ async function main(){
   return;
  }
  runId=claim.run.id;
- runExpires=claim.run.expires;
  const documents={saved:0,already_saved:0,skipped:0,deferred:0};
  let previousPhase,lastProgress=0,attemptedChats=0;
  const progress=async(phase,turns)=>{
@@ -425,7 +422,7 @@ async function main(){
    await saveCheckpoints();
    throw Error(reason||'no_messages');
   }
-  await alive({publishing:true});
+  await alive();
   await progress('publishing');
   const report={discovered:seen.size,failed,reason,unchanged,discovery_stop:stop,discovery_scope:scope,account_complete:false,images,documents};
   const published=await native({cmd:'publish',captures,report});if(!published.ok)throw Error('native_publish_failed');

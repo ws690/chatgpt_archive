@@ -114,15 +114,16 @@ def refresh_chat_masters(*, force=False):
             versions = db.execute('SELECT hash,path FROM versions WHERE id=? ORDER BY rowid DESC',
                                   (cid,)).fetchall()
             selected = None
-            best = (False, -1)
+            best = (False, False, -1)
             for version, path in versions:
                 source = ROOT / path
                 record = json.loads(source.read_text(encoding='utf-8'))
                 capture = record.get('capture')
                 complete = not cid.startswith('browser-') or (
-                    isinstance(capture, dict) and capture.get('history') == 'visible_start')
+                    isinstance(capture, dict) and (capture.get('history') == 'visible_start' or
+                                                   capture == {'source': 'account-export-baseline'}))
                 turns = len(record.get('mapping') or {})
-                rank = (complete, turns)
+                rank = (capture == {'source': 'account-export-baseline'}, complete, turns)
                 if rank > best:
                     selected = version, record, complete
                     best = rank

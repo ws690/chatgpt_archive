@@ -21,3 +21,5 @@ The visible chat count is a discovery result. Reconcile it with the project
 in the browser before treating the backfill as complete. Project-level
 files and instructions require separate validation. The importer polls
 the staged downloads independently of transcript changes.
+
+The browser run lock renews while the runner is responsive. Individual page operations remain bounded. An imported active-branch export baseline takes precedence over browser captures for the same indexed chat.
