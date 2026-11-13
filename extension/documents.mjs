@@ -105,11 +105,26 @@ export function documentCards(path, action, key, name) {
   if (action === 'download') {
     const dot = name.lastIndexOf('.');
     const stem = dot > 0 ? name.slice(0, dot) : name;
-    const viewer = [...document.querySelectorAll('button[aria-haspopup="menu"]')].some(button =>
-      ['File actions for ' + stem, 'File actions for ' + name].includes(button.getAttribute('aria-label')));
+    const viewer = [...document.querySelectorAll('button[aria-haspopup="menu"]')].find(button =>
+      rendered(button) && ['File actions for ' + stem, 'File actions for ' + name].includes(button.getAttribute('aria-label')));
     const buttons = [...document.querySelectorAll('button[aria-label="Download"]')].filter(rendered);
     const generated = cards.get(key)?.generated || key?.startsWith('["output",');
     const viewerOpen = [...document.querySelectorAll('button[aria-label="Close viewer"]')].some(rendered);
+    if (viewer && !buttons.length) {
+      if (viewer.getAttribute('aria-expanded') !== 'true') {
+        viewer.click();
+        return false;
+      }
+      const menuId = viewer.getAttribute('aria-controls');
+      const menu = menuId && document.getElementById(menuId);
+      const entries = [...menu?.querySelectorAll('[role="menuitem"]') || []].filter(item =>
+        rendered(item) && item.getAttribute('aria-disabled') !== 'true' &&
+        /^download(?: file)?$/i.test((item.getAttribute('aria-label') || item.textContent).trim()));
+      if (entries.length === 1) {
+        entries[0].click();
+        return true;
+      }
+    }
     if ((!viewer && !(generated && viewerOpen)) || buttons.length !== 1 ||
         buttons[0].disabled || buttons[0].getAttribute('aria-busy') === 'true') return false;
     buttons[0].click();
