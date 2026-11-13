@@ -113,17 +113,23 @@ def refresh_chat_masters(*, force=False):
                 continue
             versions = db.execute('SELECT hash,path FROM versions WHERE id=? ORDER BY rowid DESC',
                                   (cid,)).fetchall()
+            records = [(version, json.loads((ROOT / path).read_text(encoding='utf-8')))
+                       for version, path in versions]
+            baseline = next((record for _, record in records
+                             if record.get('capture') == {'source': 'account-export-baseline'}), None)
+            baseline_text = text_from(baseline) if baseline else ''
             selected = None
             best = (False, False, -1)
-            for version, path in versions:
-                source = ROOT / path
-                record = json.loads(source.read_text(encoding='utf-8'))
+            for version, record in records:
                 capture = record.get('capture')
                 complete = not cid.startswith('browser-') or (
                     isinstance(capture, dict) and (capture.get('history') == 'visible_start' or
                                                    capture == {'source': 'account-export-baseline'}))
                 turns = len(record.get('mapping') or {})
-                rank = (capture == {'source': 'account-export-baseline'}, complete, turns)
+                protected = capture == {'source': 'account-export-baseline'}
+                if baseline_text and complete and not protected:
+                    protected = text_from(record).startswith(baseline_text + '\n\n### ')
+                rank = (protected, complete, turns)
                 if rank > best:
                     selected = version, record, complete
                     best = rank

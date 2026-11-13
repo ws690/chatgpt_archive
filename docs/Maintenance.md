@@ -23,3 +23,7 @@ files and instructions require separate validation. The importer polls
 the staged downloads independently of transcript changes.
 
 The browser run lock renews while the runner is responsive. Individual page operations remain bounded. An imported active-branch export baseline takes precedence over browser captures for the same indexed chat.
+
+A later complete browser capture can advance an export-backed master if its
+rendered transcript preserves the entire baseline as an exact prefix.
+A partial capture or a representation mismatch keeps the verified baseline.
