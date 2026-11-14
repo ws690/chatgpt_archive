@@ -85,9 +85,13 @@ test('history traverses long overlapping windows without skipping turns',async()
    view:{top,height:149100,viewport:100},
    messages:turns.slice(Math.floor(top/150),Math.floor(top/150)+9)
  });
+ let checkpoint;
  const result=await collectHistory(sample(),{
-   scroll:async offset=>{top=offset;},pause:async()=>{},read:async()=>sample()
+   scroll:async offset=>{top=offset;},pause:async()=>{},read:async()=>sample(),
+   visit:async (messages,anchor)=>{checkpoint={messages,anchor};}
  });
  assert.equal(result.history,'visible_start');
  assert.deepEqual(result.messages,turns);
+ assert.equal(checkpoint.anchor.top,0);
+ assert.deepEqual(checkpoint.messages,turns);
 });
