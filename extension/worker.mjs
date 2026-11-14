@@ -28,14 +28,17 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
       await chrome.storage.session.set({run});return {ok:true,run};
     }
     if(m.kind==='alive'){
-      const {run}=await chrome.storage.session.get('run');
+      let run;
+      try{({run}=await chrome.storage.session.get('run'));}
+      catch{return {ok:false,lease:'read_failed'};}
       const now=Date.now();
       if(!run)return {ok:false,lease:'missing'};
       if(run.id!==m.id)return {ok:false,lease:'replaced'};
       if(run.expires<=now)return {ok:false,lease:'expired'};
       if(run.expires-now<leaseMs-60000){
         run.expires=now+leaseMs;
-        await chrome.storage.session.set({run});
+        try{await chrome.storage.session.set({run});}
+        catch{return {ok:false,lease:'write_failed'};}
         return {ok:true,lease:'renewed'};
       }
       return {ok:true};

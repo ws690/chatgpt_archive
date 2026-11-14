@@ -44,7 +44,7 @@ def execute(message):
         return {'ok': True}
     if cmd == 'lease_event':
         event = message.get('event')
-        if event not in ('renewed', 'missing', 'replaced', 'expired', 'transport_failed', 'worker_failed'):
+        if event not in ('renewed', 'missing', 'replaced', 'expired', 'transport_failed', 'worker_failed', 'read_failed', 'write_failed'):
             raise ValueError('invalid_lease_event')
         fd = os.open(archive.STATE / 'extension-lease.jsonl',
                      os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
