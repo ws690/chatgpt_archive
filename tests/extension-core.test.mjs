@@ -67,6 +67,10 @@ test('unchanged chats can skip history until the weekly recheck',async()=>{
  const previous={fingerprint,full:await transcriptFingerprint('Kitchen',messages),checkedAt:0};
  assert.equal(isUnchanged({fingerprint,checkedAt:0},fingerprint,1000),false);
  assert.equal(isUnchanged(previous,fingerprint,1000),true);
+ const appended=[...messages,{role:'user',key:'new-turn',text:'An incremental backup change'}];
+ const updated=await chatFingerprint('Kitchen',{messages:appended,imageCount:0});
+ assert.equal(isUnchanged(previous,updated,1000),false);
+ assert.notEqual(await transcriptFingerprint('Kitchen',appended),previous.full);
  assert.equal(isUnchanged(previous,fingerprint,7*24*60*60*1000),false);
  assert.notEqual(await chatFingerprint('Kitchen',{messages,imageCount:1}),fingerprint);
  const edited=[{...messages[0],text:'earlier edit'},...messages.slice(1)];
