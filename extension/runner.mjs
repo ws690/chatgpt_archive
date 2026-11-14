@@ -28,7 +28,7 @@ async function state(mode,offset){
    const tab=await chrome.tabs.get(tabId);
    if(authPage(tab.url)||/https:\/\/auth\.openai\.com\//i.test(error.message))throw Error('authentication_required');
    if(attempt<6 && tab.url?.startsWith(ORIGIN+'/') &&
-      /frame|context|document|tab was closed/i.test(error.message)){
+      /frame|context|document|renderer|tab was closed/i.test(error.message)){
     await sleep(1500);
     continue;
    }
@@ -411,6 +411,7 @@ async function main(){
    }catch(e){
     failed++;
     const current=safeError(e);
+    await native({cmd:'chat_issue',id:chatId(path),phase:previousPhase,reason:current}).catch(()=>{});
     if(!reason||humanStep(current)||current==='chatgpt_unreachable')reason=current;
     if(current==='chatgpt_unreachable')networkFailures++;
     if(humanStep(current))keepTab=true;

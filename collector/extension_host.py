@@ -42,6 +42,18 @@ def execute(message):
                             {'day': now.astimezone(archive.TZ).date().isoformat(),
                              'state': state, 'at': now.isoformat()})
         return {'ok': True}
+    if cmd == 'chat_issue':
+        cid, phase, reason = (message.get(key) for key in ('id', 'phase', 'reason'))
+        if not isinstance(cid, str) or not re.fullmatch(r'[A-Za-z0-9-]{1,100}', cid):
+            raise ValueError('invalid_id')
+        if not isinstance(phase, str) or not re.fullmatch(r'[a-z_]{1,32}', phase) or reason not in SAFE_ERRORS:
+            raise ValueError('invalid_chat_issue')
+        fd = os.open(archive.STATE / 'extension-chat-issues.jsonl',
+                     os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, 'a', encoding='utf-8') as log:
+            log.write(json.dumps({'at': dt.datetime.now(dt.timezone.utc).isoformat(),
+                                  'id': cid, 'phase': phase, 'reason': reason}) + '\n')
+        return {'ok': True}
     if cmd == 'document_issue':
         cid, filename, failure = (message.get(key) for key in ('id', 'filename', 'failure'))
         if not isinstance(cid, str) or not re.fullmatch(r'[A-Za-z0-9-]{1,100}', cid):
