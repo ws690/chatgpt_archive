@@ -390,11 +390,15 @@ async function main(){
     const history=await collectHistory(historyStart,{
      read:readHistoryWindow,scroll:scrollHistory,pause:sleep,savedMessages,
      visit:async (messages,anchor)=>{
-      if(initial.unsettled || Date.now()-lastResumeWrite<30000)return;
-      lastResumeWrite=Date.now();
-      await native({cmd:'write_history_resume',id,resume:{
-       fingerprint,top:anchor.top,messages
-      }}).catch(()=>{});
+      if(!initial.unsettled && Date.now()-lastResumeWrite>=30000){
+       lastResumeWrite=Date.now();
+       await native({cmd:'write_history_resume',id,resume:{
+        fingerprint,top:anchor.top,messages
+       }}).catch(()=>{});
+      }
+      if(target && !incremental && documentBudget.left>0){
+       await saveDocuments(false,'outputs',1);
+      }
      }
     });
     if(history.anchor && !initial.unsettled && history.messages[0]?.key){
