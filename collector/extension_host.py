@@ -12,7 +12,7 @@ import collector as archive
 from chat_files import save_image, stage_document
 
 MAX_FRAME = 16 * 1024 * 1024
-SAFE_ERRORS = {'authentication_required','authentication_challenge','chatgpt_unreachable','route_error','no_visible_chats','no_messages','conversation_not_stable','oversized_conversation','run_cancelled','run_timeout','local_writer_unavailable','page_or_browser_error','native_publish_failed','another_run_active','running'}
+SAFE_ERRORS = {'authentication_required','authentication_challenge','chatgpt_unreachable','renderer_timeout','route_error','no_visible_chats','no_messages','conversation_not_stable','oversized_conversation','run_cancelled','run_timeout','local_writer_unavailable','page_or_browser_error','native_publish_failed','another_run_active','running'}
 
 
 def add_file_counts(source, report, field):

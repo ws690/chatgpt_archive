@@ -34,7 +34,7 @@ async function readPage(args){
  try{
   return await Promise.race([
    chrome.scripting.executeScript({target:{tabId},func:inspectPage,args}),
-   new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('renderer read stalled')),20000);})
+   new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('renderer_timeout')),20000);})
   ]);
  }finally{clearTimeout(timer);}
 }
@@ -51,6 +51,7 @@ async function state(mode,offset){
     await sleep(1500);
     continue;
    }
+   if(error.message==='renderer_timeout')throw error;
    throw Error('chatgpt_unreachable');
   }
   const s=result[0]?.result;if(!s)throw Error('page_or_browser_error');
@@ -360,11 +361,7 @@ async function main(){
       images.skipped++;
      }
     };
-    const readHistoryWindow=async()=>{
-     const window=await state('messages');
-     await progress('history',window.messages.length);
-     return window;
-    };
+    const readHistoryWindow=()=>state('messages');
     const scrollHistory=offset=>state('history-scroll',offset);
     let historyStart=initial,savedMessages=initial.messages;
     if(!initial.unsettled && (target || !chatCheckpoints[id]?.full)){
@@ -390,6 +387,7 @@ async function main(){
     const history=await collectHistory(historyStart,{
      read:readHistoryWindow,scroll:scrollHistory,pause:sleep,savedMessages,
      visit:async (messages,anchor)=>{
+      await progress('history',messages.length);
       if(!initial.unsettled && Date.now()-lastResumeWrite>=30000){
        lastResumeWrite=Date.now();
        await native({cmd:'write_history_resume',id,resume:{

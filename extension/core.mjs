@@ -3,7 +3,7 @@ export const ORIGIN = 'https://chatgpt.com';
 export function validChatPath(path) {return /^\/(?:g\/[A-Za-z0-9_-]+\/)?c\/[A-Za-z0-9-]{1,100}$/.test(path);}
 export function chatId(path) {if(!validChatPath(path))throw Error('page_or_browser_error');return path.slice(path.lastIndexOf('/c/')+3);}
 export function safeError(e) {
-  const codes=['authentication_required','authentication_challenge','chatgpt_unreachable','route_error','no_visible_chats','no_messages','conversation_not_stable','oversized_conversation','run_cancelled','run_timeout','local_writer_unavailable','page_or_browser_error','native_publish_failed','another_run_active'];
+  const codes=['authentication_required','authentication_challenge','chatgpt_unreachable','renderer_timeout','route_error','no_visible_chats','no_messages','conversation_not_stable','oversized_conversation','run_cancelled','run_timeout','local_writer_unavailable','page_or_browser_error','native_publish_failed','another_run_active'];
   return codes.includes(e?.message)?e.message:'page_or_browser_error';
 }
 // Serialized into an isolated extension world. Do not add closure dependencies.

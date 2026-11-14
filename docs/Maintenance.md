@@ -43,3 +43,5 @@ download with the expected name in the staging location, but the collector
 could not verify its origin and chat referrer. `download_not_seen` means no
 matching download was visible at the start deadline. Neither status counts
 toward attachment coverage. The diagnostic records no download URLs.
+
+A `renderer_timeout` means Chrome did not return a page-reading result. The collector keeps the verified history checkpoint for a later retry.
