@@ -386,8 +386,16 @@ async function main(){
      }
     }
     await progress('history',savedMessages.length);
+    let lastResumeWrite=0;
     const history=await collectHistory(historyStart,{
-     read:readHistoryWindow,scroll:scrollHistory,pause:sleep,savedMessages
+     read:readHistoryWindow,scroll:scrollHistory,pause:sleep,savedMessages,
+     visit:async (messages,anchor)=>{
+      if(initial.unsettled || Date.now()-lastResumeWrite<30000)return;
+      lastResumeWrite=Date.now();
+      await native({cmd:'write_history_resume',id,resume:{
+       fingerprint,top:anchor.top,messages
+      }}).catch(()=>{});
+     }
     });
     if(history.anchor && !initial.unsettled && history.messages[0]?.key){
      await native({cmd:'write_history_resume',id,resume:{

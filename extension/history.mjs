@@ -102,7 +102,9 @@ export async function collectHistory(initial, {read, scroll, pause, visit, saved
       current = next;
       if(joined[0]?.key && next.messages.some(row=>row.key===joined[0].key))anchor=next.view;
       saved = joined;
-      if (grew) await visit?.();
+      if (grew && joined[0]?.key && next.messages.some(row=>row.key===joined[0].key)) {
+        await visit?.(saved, anchor);
+      }
       if (topChecks === 0 && stalled === 0 && ++consecutiveJoins >= 3) {
         stride = Math.min(maxStride, Math.round(stride * 1.5));
         consecutiveJoins = 0;
