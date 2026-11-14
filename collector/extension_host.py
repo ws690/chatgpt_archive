@@ -133,7 +133,14 @@ def execute(message):
         source = message.get('report') or {}
         reason = source.get('reason')
         unchanged = source.get('unchanged')
-        if source.get('status') == 'up_to_date' and type(unchanged) is int and 1 <= unchanged <= 50:
+        if source.get('status') == 'attachment_errors' and type(unchanged) is int and 1 <= unchanged <= 50:
+            count = source.get('file_errors')
+            if type(count) is not int or not 1 <= count <= 50000:
+                raise ValueError('invalid_file_errors')
+            report = {'status': 'attention_required', 'reason': 'attachment_scan_failed',
+                      'unchanged': unchanged, 'file_errors': count,
+                      'at': dt.datetime.now(dt.timezone.utc).isoformat()}
+        elif source.get('status') == 'up_to_date' and type(unchanged) is int and 1 <= unchanged <= 50:
             report = {'status':'up_to_date','unchanged':unchanged,'at':dt.datetime.now(dt.timezone.utc).isoformat()}
         else:
             report = {'status':'running' if source.get('status') == 'running' else 'attention_required', 'reason':reason if reason in SAFE_ERRORS else 'page_or_browser_error','at':dt.datetime.now(dt.timezone.utc).isoformat()}
