@@ -111,6 +111,22 @@ class NativeWriterTests(unittest.TestCase):
         report = host.execute(payload)['report']
         self.assertEqual(report['status'], 'partial_capture_with_errors')
         self.assertEqual(report['reason'], 'chatgpt_unreachable')
+    def test_unchanged_transcripts_with_skipped_files_require_attention(self):
+        report = host.execute({'cmd': 'status', 'report': {
+            'status': 'attachment_errors', 'unchanged': 2, 'file_errors': 0,
+            'documents': {'skipped': 1, 'deferred': 0},
+        }})['report']
+        self.assertEqual(report['status'], 'attention_required')
+        self.assertEqual(report['unchanged'], 2)
+        self.assertEqual(report['documents']['skipped'], 1)
+
+    def test_capture_with_deferred_file_is_incomplete(self):
+        payload = self.payload()
+        payload['report']['documents'] = {'deferred': 1}
+        report = host.execute(payload)['report']
+        self.assertEqual(report['status'], 'partial_capture_with_errors')
+        self.assertEqual(report['documents']['deferred'], 1)
+
     def test_layout_diagnostic_filters_text_and_unknown_fields(self):
         host.execute({'cmd':'diagnostic','layout':{'counts':{'author_nodes':4,'secret':'private text'},'attributes':{'data-message-role':4,'password':'private value'},'author_attributes':{'data-message-role':{'user':2,'assistant':2,'private':'private'}} ,'text':'private chat'}})
         saved=(collector.STATE/'extension-layout.json').read_text()
