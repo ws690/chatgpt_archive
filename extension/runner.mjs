@@ -15,12 +15,17 @@ const sameChat=(left,right)=>left===right||(validChatPath(left)&&validChatPath(r
 document.querySelector('#cancel').onclick=()=>{cancelled=true;};
 async function alive(){
  if(cancelled)throw Error('run_cancelled');
- let heartbeat;
- try{heartbeat=await chrome.runtime.sendMessage({kind:'alive',id:runId});}
- catch{heartbeat={ok:false,lease:'transport_failed'};}
- const event=heartbeat?.lease || (!heartbeat?.ok?'worker_failed':null);
- if(event)await native({cmd:'lease_event',event}).catch(()=>{});
- if(!heartbeat?.ok)throw Error(heartbeat?.error || 'run_timeout');
+ for(let attempt=0; attempt<3; attempt++){
+  let heartbeat;
+  try{heartbeat=await chrome.runtime.sendMessage({kind:'alive',id:runId});}
+  catch{heartbeat={ok:false,lease:'transport_failed'};}
+  if(heartbeat?.ok)return;
+  const event=heartbeat?.lease || 'worker_failed';
+  await native({cmd:'lease_event',event}).catch(()=>{});
+  if(['missing','replaced','expired'].includes(event))throw Error('run_cancelled');
+  if(attempt<2)await sleep(1000);
+ }
+ throw Error('page_or_browser_error');
 }
 async function native(message){try{return await chrome.runtime.sendNativeMessage(HOST,message);}catch{throw Error('local_writer_unavailable');}}
 async function closeRunner(){const tab=await chrome.tabs.getCurrent();if(tab)await chrome.tabs.remove(tab.id);}
