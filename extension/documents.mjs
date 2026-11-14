@@ -147,7 +147,7 @@ function matchesDownloadName(item, filename) {
   return matchesName(filename) || matchesName(filename.replace(/[<>:"|?*]/g, '_'));
 }
 
-function matchesDownload(item, filename, path) {
+export function matchesDownload(item, filename, path) {
   if (!matchesDownloadName(item, filename)) return false;
   try {
     const source = new URL(item.url);

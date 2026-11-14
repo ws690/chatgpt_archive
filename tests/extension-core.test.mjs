@@ -95,3 +95,17 @@ test('history traverses long overlapping windows without skipping turns',async()
  assert.equal(checkpoint.anchor.top,0);
  assert.deepEqual(checkpoint.messages,turns);
 });
+
+test('OpenAI file host downloads require a referrer for the requested chat', async () => {
+ const {matchesDownload} = await import('../extension/documents.mjs');
+ const name = 'example.xlsx';
+ const item = {
+  filename: '/chat-files/example.xlsx',
+  url: 'https://files.oaiusercontent.com/download',
+  referrer: 'https://chatgpt.com/g/project/c/abc-123'
+ };
+ assert.equal(matchesDownload(item, name, '/c/abc-123'), true);
+ assert.equal(matchesDownload(item, name, '/c/other'), false);
+ assert.equal(matchesDownload({...item, referrer: 'https://chatgpt.com/'}, name, '/c/abc-123'), false);
+ assert.equal(matchesDownload({...item, url: 'https://files.oaiusercontent.com.example.org/download'}, name, '/c/abc-123'), false);
+});
