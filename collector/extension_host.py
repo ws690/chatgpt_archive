@@ -155,7 +155,7 @@ def execute(message):
             report['checks']={'verification_title':checks['verification_title'],'visible_check_elements':checks['visible_check_elements']}
         archive.atomic_json(archive.STATE/'extension-status.json', report)
         return {'ok':True,'report':report}
-    if cmd != 'publish':
+    if cmd not in ('publish', 'publish_checkpoint'):
         raise ValueError('invalid_command')
     captures = message.get('captures')
     if not isinstance(captures,list) or not 1 <= len(captures) <= 50:
@@ -204,7 +204,8 @@ def execute(message):
     if failed and isinstance(reason, str) and reason in SAFE_ERRORS:
         report['reason'] = reason
     report['zip']=archive.publish(conversations,report)
-    archive.atomic_json(archive.STATE/'extension-status.json',report)
+    if cmd == 'publish':
+        archive.atomic_json(archive.STATE/'extension-status.json',report)
     return {'ok':True,'report':report}
 
 

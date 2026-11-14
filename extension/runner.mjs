@@ -427,6 +427,11 @@ async function main(){
     const full=complete ? await transcriptFingerprint(title,captures[captureIndex].messages) : undefined;
     if(complete)updatedCheckpoints[id]={fingerprint,full,checkedAt:Date.now(),
      documents:documentKeys(),documentAttempts:documentAttempts()};
+    if(full && chatCheckpoints[id]?.full!==full){
+     const published=await native({cmd:'publish_checkpoint',captures:[captures[captureIndex]],
+      report:{discovered:1,failed:0,discovery_stop:'requested_chat',discovery_scope:'requested_chat'}});
+     if(!published.ok)throw Error('native_publish_failed');
+    }
     // Keep the verified transcript before opening viewers that may change the page.
     for(let window=0; window<480 && (documentBudget.left>0 || remainingImages>0); window++){
      const before=await state('messages');
