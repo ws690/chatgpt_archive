@@ -17,6 +17,7 @@ class DailySchedule:
     def __init__(self, state, launch):
         self.ack = state / 'extension-schedule.json'
         self.status = state / 'extension-status.json'
+        self.progress = state / 'extension-progress.json'
         self.launch = launch
         self.day = None
         self.attempts = 0
@@ -32,7 +33,10 @@ class DailySchedule:
             return
         if read_record(self.status).get('status') == 'running':
             try:
-                if now.timestamp() - self.status.stat().st_mtime < 35 * 60:
+                latest = self.status.stat().st_mtime
+                if self.progress.is_file():
+                    latest = max(latest, self.progress.stat().st_mtime)
+                if now.timestamp() - latest < 35 * 60:
                     return
             except FileNotFoundError:
                 pass
