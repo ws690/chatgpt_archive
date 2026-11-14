@@ -152,9 +152,12 @@ function matchesDownload(item, filename, path) {
   try {
     const source = new URL(item.url);
     const referrer = new URL(item.referrer);
-    return source.origin === ORIGIN && referrer.origin === ORIGIN &&
-      (referrer.pathname === path || referrer.pathname === '/' ||
-       referrer.pathname.endsWith(path.slice(path.lastIndexOf('/c/'))));
+    const chatRoute = referrer.pathname === path ||
+      referrer.pathname.endsWith(path.slice(path.lastIndexOf('/c/')));
+    if (referrer.origin !== ORIGIN) return false;
+    if (source.origin === ORIGIN) return chatRoute || referrer.pathname === '/';
+    return chatRoute && source.protocol === 'https:' && !source.port &&
+      source.hostname.endsWith('.oaiusercontent.com');
   } catch {
     return false;
   }
