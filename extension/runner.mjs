@@ -336,6 +336,13 @@ async function main(){
     let fingerprint=await chatFingerprint(title,initial);
     if(incremental && !initial.unsettled && isUnchanged(chatCheckpoints[id],fingerprint)){
      await saveDocuments(true);
+     // A tail scan can miss an unresolved file in an older viewport.
+     for(const key of attemptedDocuments){
+      if(!savedDocuments.has(key) && !seenDocuments.has(key) && !deferredDocuments.has(key)){
+       deferredDocuments.add(key);
+       documents.deferred++;
+      }
+     }
      unchanged++;
      display.textContent=`Captured ${captures.length} of ${seen.size}; ${unchanged} unchanged; ${failed} errors.`;
      continue;
