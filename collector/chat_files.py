@@ -82,9 +82,6 @@ def save_image(message):
     digest = hashlib.sha256(data).hexdigest()
     folder = image_folder(name, chat_key)
     filename = folder / f'Image {index:02d} -- {digest}.{suffix}'
-    receipt = folder / '.placed' / filename.name
-    if receipt.is_file() and not receipt.is_symlink():
-        return {'ok': True, 'saved': False, 'bytes': len(data)}
     if filename.is_symlink():
         raise ValueError('invalid_image_destination')
     if filename.exists():
@@ -139,13 +136,10 @@ def stage_document(message):
         os.fchmod(handle.fileno(), 0o600)
         digest = hashlib.file_digest(handle, 'sha256').hexdigest()
     target = folder / f'File -- {digest} -- {clean}'
-    receipts = folder / '.placed'
-    receipt = receipts / target.name
-    if receipts.is_symlink() or receipt.is_symlink() or target.is_symlink():
+    # Re-stage verified bytes so the importer can repair a missing archive
+    # file even when a receipt from an earlier placement still exists.
+    if target.is_symlink():
         raise ValueError('invalid_document_destination')
-    if receipt.is_file():
-        source.unlink()
-        return {'ok': True, 'saved': False}
     try:
         os.link(source, target, follow_symlinks=False)
         saved = True
