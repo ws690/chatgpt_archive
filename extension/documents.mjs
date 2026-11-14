@@ -133,7 +133,7 @@ export function documentCards(path, action, key, name) {
   return false;
 }
 
-function matchesDownload(item, filename, path) {
+function matchesDownloadName(item, filename) {
   if (item.byExtensionId || !item.filename.startsWith('/chat-files/')) return false;
   const name = item.filename.slice('/chat-files/'.length);
   const matchesName = candidate => {
@@ -144,7 +144,11 @@ function matchesDownload(item, filename, path) {
       name.endsWith(')' + extension) &&
       /^\d{1,6}$/.test(name.slice(stem.length + 2, -extension.length - 1)));
   };
-  if (!matchesName(filename) && !matchesName(filename.replace(/[<>:"|?*]/g, '_'))) return false;
+  return matchesName(filename) || matchesName(filename.replace(/[<>:"|?*]/g, '_'));
+}
+
+function matchesDownload(item, filename, path) {
+  if (!matchesDownloadName(item, filename)) return false;
   try {
     const source = new URL(item.url);
     const referrer = new URL(item.referrer);
@@ -232,7 +236,12 @@ export async function collectDocuments({tabId, path, id, title, saved, seen, att
         if (matches.length > 1) { failure = 'ambiguous_download'; break; }
         const [item] = matches;
         if (!item) {
-          if (!downloadId && Date.now() >= startDeadline) break;
+          if (downloadId === undefined && Date.now() >= startDeadline) {
+            if (items.some(candidate => matchesDownloadName(candidate, filename))) {
+              failure = 'download_source_unverified';
+            }
+            break;
+          }
           continue;
         }
         downloadId = item.id;

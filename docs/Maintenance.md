@@ -37,3 +37,9 @@ Lease renewals and failed heartbeat classifications are recorded in the private 
 The run lock follows the owning Chrome runner tab. It has no elapsed-time
 expiry or renewal write. Closing the runner tab releases its claim for the
 next run.
+
+When retrying a missing file, `download_source_unverified` means Chrome listed a
+download with the expected name in the staging location, but the collector
+could not verify its origin and chat referrer. `download_not_seen` means no
+matching download was visible at the start deadline. Neither status counts
+toward attachment coverage. The diagnostic records no download URLs.
