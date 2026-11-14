@@ -182,6 +182,7 @@ def place_chat_images():
             folders[hashlib.sha256(cid.encode()).hexdigest()[:16]] = relative
     document_pattern = re.compile(r'File -- ([0-9a-f]{64}) -- ([^.][^/\\\x00-\x1f\x7f]{0,169})')
     image_pattern = re.compile(r'Image \d{2} -- ([0-9a-f]{64})\.(?:jpg|png|gif|webp|avif)')
+    placed = matched = unrouted = 0
     for group in staging.iterdir():
         marker = group / '.chat-key'
         if (group.is_symlink() or marker.is_symlink() or not marker.is_file() or
@@ -189,6 +190,7 @@ def place_chat_images():
             continue
         name = folders.get(marker.read_text())
         if not name:
+            unrouted += 1
             continue
         chat = archive / name
         receipts = group / '.placed'
@@ -211,7 +213,8 @@ def place_chat_images():
                 saved = saved.with_name(f'{saved.stem} -- {match[1][:12]}{saved.suffix}')
             if saved.is_symlink():
                 raise ValueError('Unsafe attachment destination')
-            if not saved.exists():
+            new_file = not saved.exists()
+            if new_file:
                 link_version(source, saved)
             elif not source.samefile(saved) and digest(saved) != match[1]:
                 raise ValueError('Archive attachment checksum mismatch')
@@ -223,6 +226,10 @@ def place_chat_images():
                 if receipt.is_symlink() or not receipt.is_file():
                     raise ValueError('Unsafe attachment receipt')
             source.unlink()
+            placed += new_file
+            matched += not new_file
+    if placed or matched or unrouted:
+        LOG.info("Attachment placement: %d added, %d matched, %d unrouted staging folders", placed, matched, unrouted)
 
 
 def name_existing_folders():
