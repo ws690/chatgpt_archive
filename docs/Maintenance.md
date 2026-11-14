@@ -33,3 +33,7 @@ Transient chat-opening errors receive two retries. Skipped attachment names and 
 Outputs read errors are logged separately from transcript failures. The active run lease uses Chrome session storage, independent of persistent checkpoints.
 
 Lease renewals and failed heartbeat classifications are recorded in the private NAS state file `extension-lease.jsonl`.
+
+The run lock follows the owning Chrome runner tab. It has no elapsed-time
+expiry or renewal write. Closing the runner tab releases its claim for the
+next run.

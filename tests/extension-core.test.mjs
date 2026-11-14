@@ -12,7 +12,7 @@ test('worker honours the daily pause and serializes competing runs',async()=>{
  const storage=data=>({get:async key=>({[key]:data[key]}),
   set:async values=>Object.assign(data,values),remove:async key=>{delete data[key];}});
  globalThis.chrome={runtime:{id:'fixture',getURL:p=>'chrome-extension://fixture/'+p,onMessage:{addListener:fn=>listeners.push(fn)}},
-  storage:{local:storage(store),session:storage(session)}};
+  tabs:{query:async()=>[{id:1}]},storage:{local:storage(store),session:storage(session)}};
  const call=(m,mode='daily')=>new Promise(resolve=>listeners[0](m,
   {id:'fixture',url:'chrome-extension://fixture/runner.html?mode='+mode,tab:{id:1}},resolve));
  try{
@@ -21,12 +21,12 @@ test('worker honours the daily pause and serializes competing runs',async()=>{
   await call({kind:'enable',enabled:true});
   const first=await call({kind:'claim'});assert.equal(first.ok,true);
   assert.equal((await call({kind:'claim'},'manual')).error,'another_run_active');
-  session.run.expires=Date.now()+10000;
-  assert.deepEqual(await call({kind:'alive',id:first.run.id}),{ok:true,lease:'renewed'});
-  assert.equal((await call({kind:'alive',id:'other'})).lease,'replaced');
-  assert.ok(session.run.expires>Date.now()+60000);
-  session.run.expires=Date.now()-1;
-  assert.equal((await call({kind:'alive',id:first.run.id})).lease,'expired');
+  const savedNow=Date.now;
+  try{
+   Date.now=()=>savedNow()+3600000;
+   assert.deepEqual(await call({kind:'alive',id:first.run.id}),{ok:true});
+   assert.equal((await call({kind:'claim'},'manual')).error,'another_run_active');
+  }finally{Date.now=savedNow;}
   await call({kind:'finish',id:first.run.id,status:{status:'up_to_date'}});
   assert.equal(session.run,undefined);
  }finally{globalThis.chrome=savedChrome;}

@@ -1,4 +1,3 @@
-const leaseMs=30*60*1000;
 let queue=Promise.resolve();
 const serialize=fn=>{const p=queue.then(fn,fn);queue=p.catch(()=>{});return p;};
 async function openRun(limit,mode){await chrome.tabs.create({url:chrome.runtime.getURL(`runner.html?limit=${limit}&mode=${mode}`),active:mode!=='daily'});}
@@ -23,24 +22,19 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
       const {run:activeRun}=await chrome.storage.session.get('run');
       if(new URL(sender.url).searchParams.get('mode')==='daily' && dailyEnabled!==true)
         return {ok:false,error:'daily_paused'};
-      if(activeRun?.expires>Date.now())return {ok:false,error:'another_run_active'};
-      const run={id:crypto.randomUUID(),expires:Date.now()+leaseMs,tab:sender.tab?.id};
+      if(activeRun){
+        const tabs=await chrome.tabs.query({url:chrome.runtime.getURL('runner.html')+'*'});
+        if(tabs.some(tab=>tab.id===activeRun.tab))return {ok:false,error:'another_run_active'};
+      }
+      const run={id:crypto.randomUUID(),tab:sender.tab?.id};
       await chrome.storage.session.set({run});return {ok:true,run};
     }
     if(m.kind==='alive'){
       let run;
       try{({run}=await chrome.storage.session.get('run'));}
       catch{return {ok:false,lease:'read_failed'};}
-      const now=Date.now();
       if(!run)return {ok:false,lease:'missing'};
-      if(run.id!==m.id)return {ok:false,lease:'replaced'};
-      if(run.expires<=now)return {ok:false,lease:'expired'};
-      if(run.expires-now<leaseMs-60000){
-        run.expires=now+leaseMs;
-        try{await chrome.storage.session.set({run});}
-        catch{return {ok:false,lease:'write_failed'};}
-        return {ok:true,lease:'renewed'};
-      }
+      if(run.id!==m.id || run.tab!==sender.tab?.id)return {ok:false,lease:'replaced'};
       return {ok:true};
     }
     if(m.kind==='finish'){
