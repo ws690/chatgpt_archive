@@ -25,7 +25,7 @@ async function alive(){
   if(['missing','replaced','expired'].includes(event))throw Error('run_cancelled');
   if(attempt<2)await sleep(1000);
  }
- throw Error('page_or_browser_error');
+ // The browser-held lock still excludes other runners if the worker fails.
 }
 async function native(message){try{return await chrome.runtime.sendNativeMessage(HOST,message);}catch{throw Error('local_writer_unavailable');}}
 async function closeRunner(){const tab=await chrome.tabs.getCurrent();if(tab)await chrome.tabs.remove(tab.id);}
@@ -492,4 +492,7 @@ async function main(){
   if(scheduled)setTimeout(()=>closeRunner().catch(()=>{}),5000);
  }
 }
-main().catch(()=>{display.textContent='Collection stopped. Check the extension status.';});
+navigator.locks.request('nas-archive-runner',{ifAvailable:true},async lock=>{
+ if(lock)await main();
+ else await closeRunner();
+}).catch(()=>{display.textContent='Collection stopped. Check the extension status.';});
