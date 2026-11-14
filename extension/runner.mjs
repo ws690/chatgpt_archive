@@ -436,7 +436,7 @@ async function main(){
     for(let window=0; window<480 && (documentBudget.left>0 || remainingImages>0); window++){
      const before=await state('messages');
      await saveImages();
-     await saveDocuments(true,'outputs',2);
+     await saveDocuments(window===0,'outputs',2);
      if(before.view.top+before.view.viewport>=before.view.height-5)break;
      const step=Math.max(100,Math.floor(before.view.viewport*0.75));
      await state('history-scroll',before.view.top+step);
