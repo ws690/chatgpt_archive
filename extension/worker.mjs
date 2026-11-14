@@ -1,3 +1,5 @@
+const idleLimitMs=5*60*1000;
+const heartbeatIntervalMs=30000;
 let queue=Promise.resolve();
 const serialize=fn=>{const p=queue.then(fn,fn);queue=p.catch(()=>{});return p;};
 async function openRun(limit,mode){await chrome.tabs.create({url:chrome.runtime.getURL(`runner.html?limit=${limit}&mode=${mode}`),active:mode!=='daily'});}
@@ -24,9 +26,13 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
         return {ok:false,error:'daily_paused'};
       if(activeRun){
         const tabs=await chrome.tabs.query({url:chrome.runtime.getURL('runner.html')+'*'});
-        if(tabs.some(tab=>tab.id===activeRun.tab))return {ok:false,error:'another_run_active'};
+        if(tabs.some(tab=>tab.id===activeRun.tab)){
+          if(activeRun.tab===sender.tab?.id || Date.now()-activeRun.lastSeen<idleLimitMs)
+            return {ok:false,error:'another_run_active'};
+          await chrome.tabs.remove(activeRun.tab);
+        }
       }
-      const run={id:crypto.randomUUID(),tab:sender.tab?.id};
+      const run={id:crypto.randomUUID(),tab:sender.tab?.id,lastSeen:Date.now()};
       await chrome.storage.session.set({run});return {ok:true,run};
     }
     if(m.kind==='alive'){
@@ -35,6 +41,11 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
       catch{return {ok:false,lease:'read_failed'};}
       if(!run)return {ok:false,lease:'missing'};
       if(run.id!==m.id || run.tab!==sender.tab?.id)return {ok:false,lease:'replaced'};
+      if(Date.now()-run.lastSeen>=heartbeatIntervalMs){
+        run.lastSeen=Date.now();
+        try{await chrome.storage.session.set({run});}
+        catch{return {ok:false,lease:'write_failed'};}
+      }
       return {ok:true};
     }
     if(m.kind==='finish'){

@@ -12,9 +12,9 @@ test('worker honours the daily pause and serializes competing runs',async()=>{
  const storage=data=>({get:async key=>({[key]:data[key]}),
   set:async values=>Object.assign(data,values),remove:async key=>{delete data[key];}});
  globalThis.chrome={runtime:{id:'fixture',getURL:p=>'chrome-extension://fixture/'+p,onMessage:{addListener:fn=>listeners.push(fn)}},
-  tabs:{query:async()=>[{id:1}]},storage:{local:storage(store),session:storage(session)}};
- const call=(m,mode='daily')=>new Promise(resolve=>listeners[0](m,
-  {id:'fixture',url:'chrome-extension://fixture/runner.html?mode='+mode,tab:{id:1}},resolve));
+  tabs:{query:async()=>[{id:1}],remove:async id=>assert.equal(id,1)},storage:{local:storage(store),session:storage(session)}};
+ const call=(m,mode='daily',tabId=1)=>new Promise(resolve=>listeners[0](m,
+  {id:'fixture',url:'chrome-extension://fixture/runner.html?mode='+mode,tab:{id:tabId}},resolve));
  try{
   await import('../extension/worker.mjs?test='+Math.random());
   assert.equal((await call({kind:'claim'})).error,'daily_paused');
@@ -26,6 +26,11 @@ test('worker honours the daily pause and serializes competing runs',async()=>{
    Date.now=()=>savedNow()+3600000;
    assert.deepEqual(await call({kind:'alive',id:first.run.id}),{ok:true});
    assert.equal((await call({kind:'claim'},'manual')).error,'another_run_active');
+   Date.now=()=>savedNow()+7200000;
+   const replacement=await call({kind:'claim'},'manual',2);
+   assert.equal(replacement.ok,true);
+   assert.equal((await call({kind:'alive',id:first.run.id})).lease,'replaced');
+   await call({kind:'finish',id:replacement.run.id},'manual',2);
   }finally{Date.now=savedNow;}
   await call({kind:'finish',id:first.run.id,status:{status:'up_to_date'}});
   assert.equal(session.run,undefined);
