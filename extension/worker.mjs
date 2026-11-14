@@ -30,10 +30,13 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     if(m.kind==='alive'){
       const {run}=await chrome.storage.session.get('run');
       const now=Date.now();
-      if(run?.id!==m.id || run.expires<=now)return {ok:false};
+      if(!run)return {ok:false,lease:'missing'};
+      if(run.id!==m.id)return {ok:false,lease:'replaced'};
+      if(run.expires<=now)return {ok:false,lease:'expired'};
       if(run.expires-now<leaseMs-60000){
         run.expires=now+leaseMs;
         await chrome.storage.session.set({run});
+        return {ok:true,lease:'renewed'};
       }
       return {ok:true};
     }

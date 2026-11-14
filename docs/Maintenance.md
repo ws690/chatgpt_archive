@@ -31,3 +31,5 @@ A partial capture or a representation mismatch keeps the verified baseline.
 Transient chat-opening errors receive two retries. Skipped attachment names and reasons are recorded in the private NAS state file `extension-document-issues.jsonl`.
 
 Outputs read errors are logged separately from transcript failures. The active run lease uses Chrome session storage, independent of persistent checkpoints.
+
+Lease renewals and failed heartbeat classifications are recorded in the private NAS state file `extension-lease.jsonl`.

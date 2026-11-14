@@ -42,6 +42,16 @@ def execute(message):
                             {'day': now.astimezone(archive.TZ).date().isoformat(),
                              'state': state, 'at': now.isoformat()})
         return {'ok': True}
+    if cmd == 'lease_event':
+        event = message.get('event')
+        if event not in ('renewed', 'missing', 'replaced', 'expired', 'transport_failed', 'worker_failed'):
+            raise ValueError('invalid_lease_event')
+        fd = os.open(archive.STATE / 'extension-lease.jsonl',
+                     os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, 'a', encoding='utf-8') as log:
+            log.write(json.dumps({'at': dt.datetime.now(dt.timezone.utc).isoformat(),
+                                  'event': event}) + '\n')
+        return {'ok': True}
     if cmd == 'chat_issue':
         cid, phase, reason = (message.get(key) for key in ('id', 'phase', 'reason'))
         if not isinstance(cid, str) or not re.fullmatch(r'[A-Za-z0-9-]{1,100}', cid):

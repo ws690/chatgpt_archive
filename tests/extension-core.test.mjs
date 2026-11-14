@@ -22,8 +22,11 @@ test('worker honours the daily pause and serializes competing runs',async()=>{
   const first=await call({kind:'claim'});assert.equal(first.ok,true);
   assert.equal((await call({kind:'claim'},'manual')).error,'another_run_active');
   session.run.expires=Date.now()+10000;
-  assert.equal((await call({kind:'alive',id:first.run.id})).ok,true);
+  assert.deepEqual(await call({kind:'alive',id:first.run.id}),{ok:true,lease:'renewed'});
+  assert.equal((await call({kind:'alive',id:'other'})).lease,'replaced');
   assert.ok(session.run.expires>Date.now()+60000);
+  session.run.expires=Date.now()-1;
+  assert.equal((await call({kind:'alive',id:first.run.id})).lease,'expired');
   await call({kind:'finish',id:first.run.id,status:{status:'up_to_date'}});
   assert.equal(session.run,undefined);
  }finally{globalThis.chrome=savedChrome;}

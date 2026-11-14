@@ -15,8 +15,12 @@ const sameChat=(left,right)=>left===right||(validChatPath(left)&&validChatPath(r
 document.querySelector('#cancel').onclick=()=>{cancelled=true;};
 async function alive(){
  if(cancelled)throw Error('run_cancelled');
- const heartbeat=await chrome.runtime.sendMessage({kind:'alive',id:runId});
- if(!heartbeat.ok)throw Error(heartbeat.error || 'run_timeout');
+ let heartbeat;
+ try{heartbeat=await chrome.runtime.sendMessage({kind:'alive',id:runId});}
+ catch{heartbeat={ok:false,lease:'transport_failed'};}
+ const event=heartbeat?.lease || (!heartbeat?.ok?'worker_failed':null);
+ if(event)await native({cmd:'lease_event',event}).catch(()=>{});
+ if(!heartbeat?.ok)throw Error(heartbeat?.error || 'run_timeout');
 }
 async function native(message){try{return await chrome.runtime.sendNativeMessage(HOST,message);}catch{throw Error('local_writer_unavailable');}}
 async function closeRunner(){const tab=await chrome.tabs.getCurrent();if(tab)await chrome.tabs.remove(tab.id);}
