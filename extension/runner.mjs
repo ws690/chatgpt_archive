@@ -104,11 +104,14 @@ async function messages(){
 }
 async function main(){
  const scheduled=new URL(location.href).searchParams.get('mode')==='daily';
- const claim=await chrome.runtime.sendMessage({kind:'claim'});
- if(!claim.ok){
-  display.textContent=claim.error==='daily_paused'?'Daily collection is paused.':'Another run is already active.';
+ const claim=await chrome.runtime.sendMessage({kind:'claim'}).catch(()=>null);
+ if(!claim?.ok){
+  const event=claim?.error==='another_run_active'?'claim_active':
+   claim?.error==='daily_paused'?'claim_paused':'claim_failed';
+  await native({cmd:'lease_event',event}).catch(()=>{});
+  display.textContent=claim?.error==='daily_paused'?'Daily collection is paused.':'Another run is already active.';
   if(scheduled){
-   try{if(claim.error==='daily_paused')await native({cmd:'schedule',state:'paused'});}
+   try{if(claim?.error==='daily_paused')await native({cmd:'schedule',state:'paused'});}
    finally{await closeRunner();}
   }
   return;
