@@ -76,7 +76,7 @@ async function navigate(url){
  }
  throw Error('chatgpt_unreachable');
 }
-async function messages(){
+async function messages(verifiedTail){
  let previous, stableMessages, latestReadable, foundMessages=false, assistantExpected=false;
  const started=Date.now();
  const deadline=started+90000;
@@ -90,6 +90,8 @@ async function messages(){
    if(!sample.streaming && sample.messages.some(({role})=>role==='assistant'))latestReadable=sample;
    if(!sample.streaming && !sample.pending && previous===snapshot){
     stableMessages=sample;
+    if(verifiedTail && sample.view.top+sample.view.viewport>=sample.view.height-5 &&
+       await verifiedTail(sample))return sample;
     const replies=stableMessages.messages.filter(({role})=>role==='assistant');
     if(replies.some(({text})=>text!=='[Image attachment]') ||
        (replies.length && Date.now()-started>=12000))return stableMessages;
@@ -312,14 +314,17 @@ async function main(){
       }
      }
     };
+    const verifiedTail=incremental && chatCheckpoints[id]?.full
+     ? async sample=>isUnchanged(chatCheckpoints[id],await chatFingerprint(title,sample))
+     : undefined;
     let initial;
     try{
      await progress('stabilizing');
-     initial=await messages();
+     initial=await messages(verifiedTail);
      if(initial.view.top+initial.view.viewport<initial.view.height-5){
       await state('history-scroll',initial.view.height);
       await sleep(1500);
-      initial=await messages();
+      initial=await messages(verifiedTail);
      }
     }catch(error){
      if(['conversation_not_stable','no_messages'].includes(safeError(error))){
