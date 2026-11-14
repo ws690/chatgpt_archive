@@ -158,10 +158,20 @@ function matchesDownload(item, filename, path) {
 
 export async function collectDocuments({tabId, path, id, title, saved, seen, attempted=new Set(), deferred=new Set(), report, budget, check, includeOutputs=false,maxAttempts=Infinity,sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms))}) {
   const page = async (action, key, filename) => {
-    const [item] = await chrome.scripting.executeScript({
-      target: {tabId}, func: documentCards, args: [path, action, key ?? null, filename ?? null]
-    });
-    return item?.result;
+    let timer;
+    try {
+      const [item] = await Promise.race([
+        chrome.scripting.executeScript({
+          target: {tabId}, func: documentCards, args: [path, action, key ?? null, filename ?? null]
+        }),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(Error('page_or_browser_error')), 20000);
+        })
+      ]);
+      return item?.result;
+    } finally {
+      clearTimeout(timer);
+    }
   };
   const pause = () => sleep(750);
   const openOutputs = async () => {
