@@ -136,7 +136,7 @@ def execute(message):
         unchanged = source.get('unchanged')
         if source.get('status') == 'attachment_errors' and type(unchanged) is int and 1 <= unchanged <= 50:
             count = source.get('file_errors')
-            if type(count) is not int or not 1 <= count <= 50000:
+            if type(count) is not int or not 0 <= count <= 50000:
                 raise ValueError('invalid_file_errors')
             report = {'status': 'attention_required', 'reason': 'attachment_scan_failed',
                       'unchanged': unchanged, 'file_errors': count,
@@ -146,6 +146,10 @@ def execute(message):
         else:
             report = {'status':'running' if source.get('status') == 'running' else 'attention_required', 'reason':reason if reason in SAFE_ERRORS else 'page_or_browser_error','at':dt.datetime.now(dt.timezone.utc).isoformat()}
         add_file_counts(source, report, 'documents')
+        if source.get('status') == 'attachment_errors' and not (
+                report.get('file_errors') or any(report.get('documents', {}).get(key)
+                                                 for key in ('skipped', 'deferred'))):
+            raise ValueError('invalid_attachment_status')
         checks=source.get('checks')
         if isinstance(checks,dict) and type(checks.get('verification_title')) is bool and type(checks.get('visible_check_elements')) is int and 0<=checks['visible_check_elements']<=100:
             report['checks']={'verification_title':checks['verification_title'],'visible_check_elements':checks['visible_check_elements']}
@@ -186,6 +190,9 @@ def execute(message):
     report={'schema':1,'source':'nas-browser-extension','file_errors':file_errors,'status':'partial_capture_with_errors' if failed or file_errors else 'partial_capture','account_complete':False,'captured_at':dt.datetime.now(dt.timezone.utc).isoformat(),'captured':len(captures),'failed':failed,'discovered':discovered,'discovery_stop':source.get('discovery_stop') if source.get('discovery_stop') in stops else 'unknown','discovery_scope':source.get('discovery_scope') if source.get('discovery_scope') in scopes else 'unknown'}
     add_file_counts(source, report, 'images')
     add_file_counts(source, report, 'documents')
+    if any(report.get(field, {}).get(key) for field in ('images', 'documents')
+           for key in ('skipped', 'deferred')):
+        report['status'] = 'partial_capture_with_errors'
     history_states = [chat['capture'].get('history') for chat in conversations]
     if any(history_states):
         report['history'] = {state:history_states.count(state) for state in

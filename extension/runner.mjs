@@ -465,7 +465,7 @@ async function main(){
    display.textContent=`Captured ${captures.length} of ${seen.size}; ${unchanged} unchanged; ${failed} errors.`;await sleep(3000);
   }
   if(!captures.length && unchanged && !failed){
-   const reply=await native({cmd:'status',report:{status:fileErrors?'attachment_errors':'up_to_date',unchanged,file_errors:fileErrors,documents}});
+   const reply=await native({cmd:'status',report:{status:fileErrors||documents.skipped||documents.deferred?'attachment_errors':'up_to_date',unchanged,file_errors:fileErrors,documents}});
    if(!reply.ok)throw Error('native_publish_failed');
    result=reply.report;
    display.textContent=JSON.stringify(result,null,2);
