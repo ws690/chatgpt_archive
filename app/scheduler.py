@@ -3,6 +3,7 @@ import datetime as dt
 import json
 import os
 from pathlib import Path
+import stat
 import subprocess
 import sys
 import time
@@ -16,8 +17,15 @@ def signature():
     staged = ROOT / 'archive' / 'ChatGPT Files' / '.incoming'
     paths = [ROOT / 'manifests' / 'attachment-folders.json', *(ROOT / 'inbox').glob('*.zip'),
              *staged.glob('*/Image * -- *'), *staged.glob('*/File -- * -- *')]
-    return [[str(p.relative_to(ROOT)), p.stat().st_size, p.stat().st_mtime_ns]
-            for p in sorted(paths) if p.is_file()]
+    files = []
+    for path in sorted(paths):
+        try:
+            info = path.stat()
+        except FileNotFoundError:
+            continue
+        if stat.S_ISREG(info.st_mode):
+            files.append([str(path.relative_to(ROOT)), info.st_size, info.st_mtime_ns])
+    return files
 
 
 def main():
