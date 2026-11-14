@@ -1,4 +1,5 @@
 import datetime as dt
+import os
 import json
 from pathlib import Path
 import sys
@@ -39,3 +40,18 @@ class DailyScheduleTests(unittest.TestCase):
                 schedule.tick(now + dt.timedelta(seconds=elapsed), elapsed)
             self.assertEqual(launches, [True, True, True])
             self.assertEqual(json.loads(schedule.status.read_text())['reason'], 'schedule_launch_failed')
+
+    def test_long_run_with_recent_progress_defers_launch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            launches = []
+            schedule = DailySchedule(Path(directory), lambda: launches.append(True))
+            now = dt.datetime.fromisoformat('2026-11-14T00:10:00+00:00')
+            schedule.status.write_text('{"status":"running"}')
+            schedule.progress.write_text('{}')
+            old = now.timestamp() - 3600
+            os.utime(schedule.status, (old, old))
+            os.utime(schedule.progress, (now.timestamp(), now.timestamp()))
+            schedule.tick(now, 0)
+            self.assertEqual(launches, [])
+            schedule.tick(now + dt.timedelta(minutes=36), 2160)
+            self.assertEqual(launches, [True])
