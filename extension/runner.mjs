@@ -367,7 +367,7 @@ async function main(){
     };
     const scrollHistory=offset=>state('history-scroll',offset);
     let historyStart=initial,savedMessages=initial.messages;
-    if(incremental && !initial.unsettled && !chatCheckpoints[id]?.full){
+    if(!initial.unsettled && (target || !chatCheckpoints[id]?.full)){
      const response=await native({cmd:'read_history_resume',id}).catch(()=>null);
      const resume=response?.resume;
      if(resume?.fingerprint===fingerprint && Number.isFinite(resume.top) && resume.top>=0){
