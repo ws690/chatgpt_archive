@@ -29,3 +29,5 @@ rendered transcript preserves the entire baseline as an exact prefix.
 A partial capture or a representation mismatch keeps the verified baseline.
 
 Transient chat-opening errors receive two retries. Skipped attachment names and reasons are recorded in the private NAS state file `extension-document-issues.jsonl`.
+
+Outputs read errors are logged separately from transcript failures. The active run lease uses Chrome session storage, independent of persistent checkpoints.

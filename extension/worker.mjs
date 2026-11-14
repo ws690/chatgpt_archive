@@ -19,26 +19,27 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
       return {ok:true};
     }
     if(m.kind==='claim'){
-      const s=await chrome.storage.local.get(['run','dailyEnabled']);
-      if(new URL(sender.url).searchParams.get('mode')==='daily' && s.dailyEnabled!==true)
+      const {dailyEnabled}=await chrome.storage.local.get('dailyEnabled');
+      const {run:activeRun}=await chrome.storage.session.get('run');
+      if(new URL(sender.url).searchParams.get('mode')==='daily' && dailyEnabled!==true)
         return {ok:false,error:'daily_paused'};
-      if(s.run?.expires>Date.now())return {ok:false,error:'another_run_active'};
+      if(activeRun?.expires>Date.now())return {ok:false,error:'another_run_active'};
       const run={id:crypto.randomUUID(),expires:Date.now()+leaseMs,tab:sender.tab?.id};
-      await chrome.storage.local.set({run,status:{status:'running',at:new Date().toISOString()}});return {ok:true,run};
+      await chrome.storage.session.set({run});return {ok:true,run};
     }
     if(m.kind==='alive'){
-      const {run}=await chrome.storage.local.get('run');
+      const {run}=await chrome.storage.session.get('run');
       const now=Date.now();
       if(run?.id!==m.id || run.expires<=now)return {ok:false};
       if(run.expires-now<leaseMs-60000){
         run.expires=now+leaseMs;
-        await chrome.storage.local.set({run});
+        await chrome.storage.session.set({run});
       }
       return {ok:true};
     }
     if(m.kind==='finish'){
-      const {run}=await chrome.storage.local.get('run');
-      if(run?.id===m.id){await chrome.storage.local.set({status:m.status});await chrome.storage.local.remove('run');}
+      const {run}=await chrome.storage.session.get('run');
+      if(run?.id===m.id){await chrome.storage.session.remove('run');await chrome.storage.local.set({status:m.status});}
       return {ok:true};
     }
     return {ok:false};

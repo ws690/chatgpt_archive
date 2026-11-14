@@ -15,7 +15,8 @@ const sameChat=(left,right)=>left===right||(validChatPath(left)&&validChatPath(r
 document.querySelector('#cancel').onclick=()=>{cancelled=true;};
 async function alive(){
  if(cancelled)throw Error('run_cancelled');
- if(!(await chrome.runtime.sendMessage({kind:'alive',id:runId})).ok)throw Error('run_timeout');
+ const heartbeat=await chrome.runtime.sendMessage({kind:'alive',id:runId});
+ if(!heartbeat.ok)throw Error(heartbeat.error || 'run_timeout');
 }
 async function native(message){try{return await chrome.runtime.sendNativeMessage(HOST,message);}catch{throw Error('local_writer_unavailable');}}
 async function closeRunner(){const tab=await chrome.tabs.getCurrent();if(tab)await chrome.tabs.remove(tab.id);}
@@ -224,7 +225,7 @@ async function main(){
     .sort((a,b)=>(b[1].checkedAt||0)-(a[1].checkedAt||0)).slice(0,2000);
    await chrome.storage.local.set({chatCheckpoints:Object.fromEntries(entries)});
   };
-  const captures=[];let failed=0,unchanged=0,totalBytes=0,reason;
+  const captures=[];let failed=0,fileErrors=0,unchanged=0,totalBytes=0,reason;
   let networkFailures=0;
   const images={saved:0,already_saved:0,skipped:0};
   let remainingImages=50;
@@ -268,6 +269,11 @@ async function main(){
        tabId,path:s.path,id,title,saved:savedDocuments,seen:seenDocuments,
        attempted:attemptedDocuments,deferred:deferredDocuments,report:documents,budget:documentBudget,check:alive,includeOutputs,maxAttempts,sleep
       });
+     }catch(error){
+      const reason=safeError(error);
+      if(humanStep(reason)||['run_cancelled','run_timeout'].includes(reason))throw error;
+      fileErrors++;
+      await native({cmd:'chat_issue',id,phase,reason}).catch(()=>{});
      }finally{
       updatedCheckpoints[id]={...(updatedCheckpoints[id]||chatCheckpoints[id]),documents:documentKeys(),documentAttempts:documentAttempts()};
      }
@@ -419,7 +425,7 @@ async function main(){
    }
    display.textContent=`Captured ${captures.length} of ${seen.size}; ${unchanged} unchanged; ${failed} errors.`;await sleep(3000);
   }
-  if(!captures.length && unchanged && !failed){
+  if(!captures.length && unchanged && !failed && !fileErrors){
    const reply=await native({cmd:'status',report:{status:'up_to_date',unchanged,documents}});
    if(!reply.ok)throw Error('native_publish_failed');
    result=reply.report;
@@ -429,11 +435,11 @@ async function main(){
   }
   if(!captures.length){
    await saveCheckpoints();
-   throw Error(reason||'no_messages');
+   throw Error(reason||(fileErrors?'page_or_browser_error':'no_messages'));
   }
   await alive();
   await progress('publishing');
-  const report={discovered:seen.size,failed,reason,unchanged,discovery_stop:stop,discovery_scope:scope,account_complete:false,images,documents};
+  const report={discovered:seen.size,failed,reason,file_errors:fileErrors,unchanged,discovery_stop:stop,discovery_scope:scope,account_complete:false,images,documents};
   const published=await native({cmd:'publish',captures,report});if(!published.ok)throw Error('native_publish_failed');
   result=published.report;display.textContent=JSON.stringify(result,null,2);
   await saveCheckpoints();

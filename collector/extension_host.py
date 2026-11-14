@@ -163,7 +163,9 @@ def execute(message):
     if type(failed) is not int or not 0<=failed<=50 or type(discovered) is not int or not len(captures)<=discovered<=20000:raise ValueError('invalid_report')
     stops={'chat_limit','scroll_limit','sidebar_stable_not_proof_of_completeness','requested_chat','project_visible_links'}
     scopes={'sidebar','visible_chat_links','requested_chat','project'}
-    report={'schema':1,'source':'nas-browser-extension','status':'partial_capture_with_errors' if failed else 'partial_capture','account_complete':False,'captured_at':dt.datetime.now(dt.timezone.utc).isoformat(),'captured':len(captures),'failed':failed,'discovered':discovered,'discovery_stop':source.get('discovery_stop') if source.get('discovery_stop') in stops else 'unknown','discovery_scope':source.get('discovery_scope') if source.get('discovery_scope') in scopes else 'unknown'}
+    file_errors=source.get('file_errors',0)
+    if type(file_errors) is not int or not 0<=file_errors<=50000:raise ValueError('invalid_file_errors')
+    report={'schema':1,'source':'nas-browser-extension','file_errors':file_errors,'status':'partial_capture_with_errors' if failed or file_errors else 'partial_capture','account_complete':False,'captured_at':dt.datetime.now(dt.timezone.utc).isoformat(),'captured':len(captures),'failed':failed,'discovered':discovered,'discovery_stop':source.get('discovery_stop') if source.get('discovery_stop') in stops else 'unknown','discovery_scope':source.get('discovery_scope') if source.get('discovery_scope') in scopes else 'unknown'}
     add_file_counts(source, report, 'images')
     add_file_counts(source, report, 'documents')
     history_states = [chat['capture'].get('history') for chat in conversations]

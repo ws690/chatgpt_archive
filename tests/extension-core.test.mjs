@@ -8,9 +8,11 @@ test('private exception details are not status text',()=>{assert.equal(safeError
 test('worker honours the daily pause and serializes competing runs',async()=>{
  const savedChrome=globalThis.chrome;
  const store={},listeners=[];
+ const session={};
+ const storage=data=>({get:async key=>({[key]:data[key]}),
+  set:async values=>Object.assign(data,values),remove:async key=>{delete data[key];}});
  globalThis.chrome={runtime:{id:'fixture',getURL:p=>'chrome-extension://fixture/'+p,onMessage:{addListener:fn=>listeners.push(fn)}},
-  storage:{local:{get:async keys=>Object.fromEntries((typeof keys==='string'?[keys]:keys).map(k=>[k,store[k]])),
-   set:async data=>Object.assign(store,data),remove:async key=>{delete store[key];}}}};
+  storage:{local:storage(store),session:storage(session)}};
  const call=(m,mode='daily')=>new Promise(resolve=>listeners[0](m,
   {id:'fixture',url:'chrome-extension://fixture/runner.html?mode='+mode,tab:{id:1}},resolve));
  try{
@@ -19,8 +21,11 @@ test('worker honours the daily pause and serializes competing runs',async()=>{
   await call({kind:'enable',enabled:true});
   const first=await call({kind:'claim'});assert.equal(first.ok,true);
   assert.equal((await call({kind:'claim'},'manual')).error,'another_run_active');
+  session.run.expires=Date.now()+10000;
+  assert.equal((await call({kind:'alive',id:first.run.id})).ok,true);
+  assert.ok(session.run.expires>Date.now()+60000);
   await call({kind:'finish',id:first.run.id,status:{status:'up_to_date'}});
-  assert.equal(store.run,undefined);
+  assert.equal(session.run,undefined);
  }finally{globalThis.chrome=savedChrome;}
 });
 
