@@ -99,7 +99,31 @@ def tidy_chats():
             old.unlink()
 
 
+def project_routes():
+    archive = ROOT / 'archive'
+    result = {}
+    routes = ROOT / 'manifests' / 'attachment-folders.json'
+    if routes.is_file() and not routes.is_symlink() and not routes.parent.is_symlink():
+        mapping = json.loads(routes.read_text(encoding='utf-8'))
+        for cid, relative in mapping.items():
+            if not re.fullmatch(r'[A-Za-z0-9-]{1,100}', cid) or not isinstance(relative, str):
+                raise ValueError('Invalid attachment route')
+            folder = Path(relative)
+            if folder.is_absolute() or not folder.parts or '..' in folder.parts:
+                raise ValueError('Unsafe attachment route')
+            destination = archive
+            for component in folder.parts:
+                destination /= component
+                if destination.is_symlink():
+                    raise ValueError('Unsafe attachment route')
+            if not destination.is_dir():
+                continue
+            result[cid] = folder
+    return result
+
+
 def refresh_chat_masters(*, force=False):
+    routes = project_routes()
     with sqlite3.connect(ROOT / 'database/index.sqlite3') as db:
         chats = db.execute('''SELECT f.id,f.folder,MAX(v.rowid),m.version,m.latest
                               FROM chat_folders f JOIN versions v ON v.id=f.id
@@ -109,7 +133,14 @@ def refresh_chat_masters(*, force=False):
             target = chat / (folder + '.md')
             if chat.is_symlink() or target.is_symlink():
                 raise ValueError('Unsafe master transcript path')
-            if not force and latest == previous_latest and target.is_file():
+            route = routes.get(cid.removeprefix('browser-')) if cid.startswith('browser-') else None
+            project = ROOT / 'archive' / route / target.name if route else None
+            if project == target:
+                project = None
+            if project and project.is_symlink():
+                raise ValueError('Unsafe project transcript path')
+            if (not force and latest == previous_latest and target.is_file() and
+                    (project is None or project.is_file() and target.samefile(project))):
                 continue
             versions = db.execute('SELECT hash,path FROM versions WHERE id=? ORDER BY rowid DESC',
                                   (cid,)).fetchall()
@@ -148,6 +179,15 @@ def refresh_chat_masters(*, force=False):
                         os.replace(temp, target)
                     finally:
                         temp.unlink(missing_ok=True)
+            if project and (not project.is_file() or not target.samefile(project)):
+                if project.exists() and project.read_bytes() != target.read_bytes():
+                    previous_copy = ROOT / 'originals' / f'project-transcript-{digest(project)}.md'
+                    if not previous_copy.exists():
+                        link_version(project, previous_copy)
+                with tempfile.TemporaryDirectory(dir=project.parent) as directory:
+                    link = Path(directory) / project.name
+                    link_version(target, link)
+                    os.replace(link, project)
             db.execute('INSERT OR REPLACE INTO chat_masters VALUES(?,?,?)', (cid, version, latest))
 
 
@@ -163,23 +203,8 @@ def place_chat_images():
             for cid, folder in db.execute('SELECT id,folder FROM chat_folders')
             if cid.startswith('browser-')
         }
-    routes = ROOT / 'manifests' / 'attachment-folders.json'
-    if routes.is_file() and not routes.is_symlink() and not routes.parent.is_symlink():
-        mapping = json.loads(routes.read_text(encoding='utf-8'))
-        for cid, relative in mapping.items():
-            if not re.fullmatch(r'[A-Za-z0-9-]{1,100}', cid) or not isinstance(relative, str):
-                raise ValueError('Invalid attachment route')
-            folder = Path(relative)
-            if folder.is_absolute() or not folder.parts or '..' in folder.parts:
-                raise ValueError('Unsafe attachment route')
-            destination = archive
-            for component in folder.parts:
-                destination /= component
-                if destination.is_symlink():
-                    raise ValueError('Unsafe attachment route')
-            if not destination.is_dir():
-                continue
-            folders[hashlib.sha256(cid.encode()).hexdigest()[:16]] = relative
+    folders.update({hashlib.sha256(cid.encode()).hexdigest()[:16]: relative
+                    for cid, relative in project_routes().items()})
     document_pattern = re.compile(r'File -- ([0-9a-f]{64}) -- ([^.][^/\\\x00-\x1f\x7f]{0,169})')
     image_pattern = re.compile(r'Image \d{2} -- ([0-9a-f]{64})\.(?:jpg|png|gif|webp|avif)')
     placed = matched = unrouted = 0

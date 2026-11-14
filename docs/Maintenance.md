@@ -47,3 +47,5 @@ toward attachment coverage. The diagnostic records no download URLs.
 A `renderer_timeout` means Chrome did not return a page-reading result. The collector keeps the verified history checkpoint for a later retry.
 
 The importer logs attachment placement counts after verifying file checksums. Added files are new archive entries, matched files reuse an existing copy, and unrouted staging folders require an archive destination.
+
+On import, project routes also publish the indexed master Markdown alongside the chat files. A differing previous project copy is retained under originals.
