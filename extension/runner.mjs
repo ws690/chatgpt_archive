@@ -29,11 +29,20 @@ async function alive(){
 }
 async function native(message){try{return await chrome.runtime.sendNativeMessage(HOST,message);}catch{throw Error('local_writer_unavailable');}}
 async function closeRunner(){const tab=await chrome.tabs.getCurrent();if(tab)await chrome.tabs.remove(tab.id);}
+async function readPage(args){
+ let timer;
+ try{
+  return await Promise.race([
+   chrome.scripting.executeScript({target:{tabId},func:inspectPage,args}),
+   new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('renderer read stalled')),20000);})
+  ]);
+ }finally{clearTimeout(timer);}
+}
 async function state(mode,offset){
  await alive();
  for(let attempt=0;attempt<7;attempt++){
   let result;
-  try{result=await chrome.scripting.executeScript({target:{tabId},func:inspectPage,args:offset===undefined?[mode]:[mode,offset]});}
+  try{result=await readPage(offset===undefined?[mode]:[mode,offset]);}
   catch(error){
    const tab=await chrome.tabs.get(tabId);
    if(authPage(tab.url)||/https:\/\/auth\.openai\.com\//i.test(error.message))throw Error('authentication_required');
