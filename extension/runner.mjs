@@ -247,11 +247,13 @@ async function main(){
     if(ownedTab)await chrome.tabs.remove(tabId);
     const tab=await chrome.tabs.create({url:'about:blank',active:true});
     tabId=tab.id;ownedTab=true;
+    let landedPath;
     for(let attempt=0; ; attempt++){
      try{
       await navigate(ORIGIN+path);
       const s=await state('links');
       if(!sameChat(s.path,path))throw Error('chatgpt_unreachable');
+      landedPath=s.path;
       break;
      }catch(error){
       if(safeError(error)!=='chatgpt_unreachable' || attempt===2)throw error;
@@ -270,7 +272,7 @@ async function main(){
      try{
       await progress(phase);
       await collectDocuments({
-       tabId,path:s.path,id,title,saved:savedDocuments,seen:seenDocuments,
+       tabId,path:landedPath,id,title,saved:savedDocuments,seen:seenDocuments,
        attempted:attemptedDocuments,deferred:deferredDocuments,report:documents,budget:documentBudget,check:alive,includeOutputs,maxAttempts,sleep
       });
      }catch(error){
@@ -317,7 +319,7 @@ async function main(){
     const saveImages=async()=>{
      if(!remainingImages)return;
      try{
-      const result=await saveChatImages({tabId,path:s.path,id,title,remaining:remainingImages,check:alive,seen:seenImages});
+      const result=await saveChatImages({tabId,path:landedPath,id,title,remaining:remainingImages,check:alive,seen:seenImages});
       for(const key of Object.keys(images))images[key]+=result[key];
       remainingImages=Math.max(0,remainingImages-result.saved-result.already_saved-result.skipped);
      }catch(e){
