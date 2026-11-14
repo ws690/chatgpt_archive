@@ -190,8 +190,9 @@ export async function collectDocuments({tabId, path, id, title, saved, seen, att
     return await page('output-list') || [];
   };
   const outputItems = includeOutputs ? await openOutputs() : [];
-  const outputNames = new Set(outputItems.map(([, filename]) => filename));
-  const inline = (await page('list') || []).filter(([, filename]) => !outputNames.has(filename));
+  // Filenames can collide across uploads and generated outputs. Keep each card
+  // eligible and let the importer match identical bytes by checksum.
+  const inline = await page('list') || [];
   // Give unseen files a chance before repeatedly retrying an unavailable one.
   const order = new Map([...attempted].map((key, index) => [key,index]));
   const candidates = [...outputItems, ...inline].sort(([left],[right]) =>
