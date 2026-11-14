@@ -92,7 +92,10 @@ class NativeWriterTests(unittest.TestCase):
             target, = chat.glob('Images/*.png')
             self.assertEqual(target.read_bytes(), image)
             self.assertFalse(list(staging.glob('.incoming/*/*.png')))
-            self.assertFalse(host.execute(payload)['saved'])
+            target.unlink()
+            self.assertTrue(host.execute(payload)['saved'])
+            backup.place_chat_images()
+            self.assertEqual(target.read_bytes(), image)
 
         with sqlite3.connect(backup.ROOT/'database/index.sqlite3') as db:
             self.assertEqual(backup.chat_folder(db,'another','fixture').name, 'fixture (2)')
