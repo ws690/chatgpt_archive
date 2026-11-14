@@ -296,6 +296,17 @@ async function main(){
       await native({cmd:'chat_issue',id,phase,reason}).catch(()=>{});
      }finally{
       updatedCheckpoints[id]={...(updatedCheckpoints[id]||chatCheckpoints[id]),documents:documentKeys(),documentAttempts:documentAttempts()};
+      // File bytes are staged before this point. Keep transcript checkpoints
+      // separate until the corresponding capture has been published.
+      const stored=chatCheckpoints[id];
+      const keys=documentKeys(), attempts=documentAttempts();
+      if(JSON.stringify(stored?.documents || [])!==JSON.stringify(keys) ||
+         JSON.stringify(stored?.documentAttempts || [])!==JSON.stringify(attempts)){
+       chatCheckpoints[id]={...stored,documents:keys,documentAttempts:attempts};
+       const entries=Object.entries(chatCheckpoints)
+        .sort((a,b)=>(b[1].checkedAt||0)-(a[1].checkedAt||0)).slice(0,2000);
+       await chrome.storage.local.set({chatCheckpoints:Object.fromEntries(entries)});
+      }
      }
     };
     let initial;
